@@ -1,0 +1,88 @@
+INSTALLATION INSTRUCTIONS
+
+Linux, *BSD, Mac OS X, etc.
+---------------------------
+
+  Normally, it should be enough to just run:
+
+	./configure && make
+
+  A single executable "tetris" should then have been created, which may be
+  moved anywhere.  You can also run "make install" to install the program
+  along with documentation and desktop integration files in /usr/local.
+
+  If you only get error messages from the shell when you run configure, try
+  to execute with "bash configure" instead.  If you don't have bash, you will
+  have to edit config.mk and then run make.
+
+  Use "./configure help" for a list of build and installation options.
+
+  If you build with Xlib the game will pause automatically when your terminal
+  window loses focus.
+
+  By default, vitetris.xpm is installed in pixmapdir and vitetris.desktop
+  in desktopdir.  If you don't want them, set those dirs to empty strings
+  with configure or uncomment them in config.mk.  That is:
+
+	./configure pixmapdir= desktopdir=
+
+  There is a game server included which can be built with "make gameserver".
+  If SAME_LEVEL_HEIGHT is defined, players will be forced to have the same
+  start level and height (uncomment in src/netw/gameserver.c).
+  See the README under "Network Play" for more information.
+
+  Network functions such as socket() and gethostbyname() are sometimes not
+  present in libc.  On Solaris, you need to link with libsocket and libnsl:
+
+	bash configure LIBS="-lsocket -lnsl"
+
+  If you want to use Allegro, you need to have the command "allegro-config"
+  in your PATH.  I have only tested with version 4.2.2.
+
+
+Windows
+-------
+
+  (This is for advanced users.  Most people should just download the zip file
+  with binaries, extract and double-click one of the nice red icons.)
+
+  You need MinGW and things like bash and make.  Perhaps it is easiest to use
+  Cygwin and configure with:
+
+	./configure CC="gcc -mno-cygwin" ...
+
+  You also need to pass options to use either a curses library or Allegro.
+  For example:
+
+	./configure CC="gcc -mno-cygwin" curses=c:/pdcurs33/win32/pdcurses.a \
+		CPPFLAGS=-Ic:/pdcurs33
+
+  To use Allegro, install it in MINGDIR or C:\MinGW, and "configure" will
+  find it.  Either the dynamically or the statically linked version will do.
+  If both are installed, use "allegro=-lalleg_s" to get the statically linked
+  version.  Example:
+
+	./configure CC="gcc -mno-cygwin" LDFLAGS=-Wl,--subsystem,windows \
+		allegro
+
+  If you want a program icon, uncomment the following line in src/Makefile:
+
+	#OBJS += ../icon.o
+
+
+DOS
+---
+
+  If you don't have DJGPP and bash, you should get vitet055src.zip.
+  Otherwise, install PDCurses and run the following.
+
+	bash configure curses network= LIBS=-lemu
+	make
+
+  -lemu is only needed if you want it to run on really old computers without
+  a floating point unit (e.g. 486SX).
+
+  You can also use Allegro, but then your executable will be very large.  Or
+  compile a version which simply prints ANSI/VT100 escape sequences like the
+  original vitetris, but then you need to load ansi.sys (or nansi.sys).
+

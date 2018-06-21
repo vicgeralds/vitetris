@@ -1,0 +1,210 @@
+2009-09-13: version 0.57
+
+  * Allegro: fixed awkward array overrun when there are more than two
+    joysticks connected.
+  * Fixed awkward bug that prevented the first joystick from showing up in
+    the menus when there are two.
+  * Fixed saved player to joystick section in the configuration file
+    (e.g. if player1 used js0, "player=1" was saved to [js1]).
+  * tmpnam() is not used anymore as I realized how tmpfile() can easily be
+    used instead.
+  * Workarounds for PDCurses in Win 98 (getch() returns strange things).
+    I use PDCurses 3.3, haven't tried the latest version.
+  * Other small fixes.
+
+2009-06-17: version 0.56
+
+  * Fixed nondetected invalid lines when decoding highscores.
+  * Renamed icon.xpm to vitetris.xpm and added vitetris.desktop.
+  * Removed useless and confusing --destdir from configure.
+  * Modified Makefile to use DESTDIR.
+  * New installation directories: datarootdir, pixmapdir and desktopdir.
+
+2008-10-24: version 0.55
+
+  * Fixed code which assumes that char is signed.
+  * Fixed a few netplay things.
+  * Fixed a few keyboard setup things.
+  * Fixed some other small things.
+    I fancy there are no more bugs to be found.
+
+2008-10-16: version 0.54
+
+  * Fixed missing null-byte in string when saving won-lost stats.
+  * Fixed incorrect check when waiting for the first tetromino, which the
+    other player sends. Could end the game before anyone has three wins
+    on a slow connection.
+  * Allegro: Desktop colour depth not used on unix since it seems to cause
+    seg fault on startup (sometimes) on Linux X11.
+  * Netplay connect menu.
+  * Won-lost stats depend on which name you use.
+  * Game server much improved and protocol extended so that clients can
+    get a player list and select an opponent from it.
+  * The protocol allows to set start level and height.  A custom server can
+    be built which forces players to have the same level and height.
+  * Many small improvements and fixes of the netplay menus, etc.
+  * Fixed possibly incorrect mode when starting with "nomenu".  A version
+    compiled without two-player mode would behave very strange if mode is
+    two-player in configuration file, for example.
+
+2008-10-06: version 0.53
+
+  * "connect" accepts space between hostname and port number instead of colon.
+  * If port number is missing, checks /dev etc. instead of just guessing
+    that hostname is a tty.
+  * Fixed seg fault when only port number is specified (introduced in 0.51).
+  * Fixed linking error when inet is disabled in src-conf.mk.
+  * The user is asked to confirm that he wants to close the connection when
+    about to leave the netplay menu.
+  * Fixed some problems with the tty invitation system.
+  * Old tty invitation files are once again removed automatically.
+    This was added in 0.43 but missing in 0.50, apparently.
+
+2008-10-03: version 0.52
+
+  * Fixed Makefiles on OS X.
+  * Netplay: Tuned a certain timeout which would close the connection.
+
+2008-09-11: version 0.51
+
+  * The last hostname:port used with "connect" is remembered and will be
+    used if "connect" is given no argument.
+  * WIN32: added connect.exe, a simple netplay frontend.
+  * Allegro: fullscreen setting available in Options menu.
+  * Allegro: Alt-Enter toggles fullscreen.
+  * Allegro: Desktop colour depth used.
+  * WIN32-Allegro: stdout emulated when not console application.
+  * WIN32-Allegro: fixed tab-repeat when Alt-tabbing away from and switching
+    back to fullscreen in Windows Vista.
+  * The highscore box shows 5-9 instead of 4-8 when a score is entered at
+    position 8 (for example).
+  * Won-lost stats are saved for players which identify themselves with a
+    name (with -name option).
+
+2008-09-03: version 0.50
+
+  The goal for this release was to make everything work under Windows/DOS.
+  And of course I couldn't help but fix many other things along the way, so
+  it took quite some time.  Here is an incomplete list of more or less
+  important changes:
+
+  * Netplay is much more robust.  There is basic backward compatibility,
+    but you shouldn't play 0.4x anymore.
+  * It is possible for players to connect to a server instead of directly to
+    one another.  A simple game server is included.
+  * Two-player bug fixed: if the game ended just at the last frame of the line
+    clear animation, there would be a freeze or a garbage top up for the other
+    player during the next game.
+  * Two-player bug fixed: if a player received garbage just when he had
+    cleared ALL his blocks, the game would hang.
+  * Players receive the same garbage blocks at beginning if they have the same
+    height.
+  * A game can end in a draw.
+  * There is a drop marker at the bottom (not in an 80x24 terminal).
+  * New block style "brackets" (which gives better contrast in xterm).
+  * Tetromino Colours menu fixed.
+  * Input Setup menu improved.
+  * First letters can be used to navigate in the menus.
+  * Command-line options are more helpful; response is given for invalid
+    arguments, unrecognized options etc.
+  * The Allegro library can be used.
+  * Linux joystick code reads axis events correctly.
+  * Ctrl-Z and \r are not used in encoded highscores anymore.  Entries which
+    contain these bytes are duplicated for backward compatibility.
+  * Should work with 16-bit compilers (tested with Turbo C).
+
+
+2008-06-27: version 0.43
+
+  * nosafedrop option mentioned in README finally implemented.
+  * The curses version no longer uses select on the stdin file descriptor to
+    wait for input.  (Which was a bad thing to do since curses could read
+    stdin as a stream.)
+  * Time delays are better handled.
+  * Fixed colour issues with pdcurses and possibly other versions of curses.
+  * Old tty invitation files (/tmp/vitetris-*) are now removed automatically.
+
+2008-06-23: version 0.42
+
+  A fixed typo caused version 0.41 to _not_ compile with two-player disabled.
+  So I just restored the typo. ;-)
+
+  I have renamed /var/games/vitetris-hiscore to vitetris-hiscores.
+  Diff the src directory if you feel like.
+
+2008-06-18: version 0.41
+
+  * Fixed a bug in the 1-player game menu: shown player options would be
+    uninitialized data in a special case.
+  * Garbage meter is now two characters wide and thus more noticable.
+  * Added #ifdef stuff to draw.c.
+  * Some fine-tuning of the joystick code.
+  * Rewritten strtoval in options.c.
+  * Small update to the README file.
+  * Added CHANGELOG-03x and this file.
+  * --destdir added to configure.
+
+2008-04-27: version 0.40
+
+  This is a careful rewrite of much of the code.  New features include network
+  play, joystick (gamepad) support on Linux, and the compile-time option to
+  use curses.  Command-line options have been extended so that menus don't
+  have to be used; menus can now be disabled at compile time.
+
+
+Version 0.3.6
+* Fixed pause bug.
+* American spelling used when locale is en_US.
+* Tetromino colours can be changed.
+* Build-system is more portable.
+* ESC[G not used anymore as it is not a VT100 escape sequence and is not
+  supported in NetBSD's VT100 emulation.
+* Fixed buggy use of struct timeval which produced an error on NetBSD.
+* Beaten highscores at end of list are now removed internally, so no 11th
+  entry will show up after entering a new score.
+
+Version 0.3.5
+* Start height of random blocks added.
+* Improved menus.
+* Command-line option "-nomenu" added, which skips menus.
+* Terminal resizing better handled.
+* Fixed time delays in slow terminals (when printing is slow). This problem
+  was observed under cygwin/Win 98 on a 400-MHz Pentium II.
+* Drops are ignored when piece is at its spawn position, to prevent
+  double-drop mistakes when auto-repeat is fast (or otherwise).
+* README file changed.
+
+Version 0.3.4
+* Fixed missing flush of output when winner is shown in 2-player mode.
+* SIGWINCH signal is now handled, which means that terminal resizing can be
+  detected without using Xlib.
+* The position line under Top Scores now shows up when score qualifies for the
+  highscore list.
+
+Version 0.3.3
+* Fixed bugs that cause problems under cygwin and possibly under other
+  systems.
+* Fixed bug in 1-player mode which caused keys with no action to drop piece
+  one row.
+* Fixed detection of X window in gnome-terminal.
+* Output buffering is now used.
+* Interrupt signal is now handled.
+* Various other small fixes.
+* Two-clause BSD-style licence added.
+
+Version 0.3.2
+* Fixed bug that would cause freeze when softdrop key is held down and
+  softdrop speed is set to 20 (discovered by Andreas Carlsson). This bug is
+  not present in version 0.2.x.
+* Fixed bug introduced in 0.3.1 which causes term bg to be set to white on
+  every startup.
+* New tt-bg mode for drawing blocks added.
+
+Version 0.3.1
+* When a horizontal move fails in levels where fall time < lock delay, it is
+  performed again when piece is moved down by gravity.
+* tt mode added - blocks can be drawn as in Tetris for Terminals.
+* Terminal options can be specified on command line.
+* Command-line option "-hiscore" can be used to merge highscore files.
+* Listing of command-line options with "-help" added.
+* Some code cleanup.
