@@ -822,7 +822,6 @@ int startgame_wait(int n)
 	if (game->mode & MODE_2PLAYER)
 		upd_screen(2);
 	game->state = GAME_RUNNING;
-	game->next = NULL;
 	return 1;
 }
 
@@ -840,6 +839,7 @@ int pausegame()
 		return -2;
 	upd_screen(1);
 	show_dropmarker(&player1);
+	drawnext(&player1, game->next);
 	game->state = GAME_RUNNING;
 	return 2;
 }

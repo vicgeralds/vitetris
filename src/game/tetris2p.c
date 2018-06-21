@@ -398,7 +398,7 @@ static int upd_player(struct player *plr, struct tetris2p *tet, int tm)
 
 static int startgame_wait_2p()
 {
-	struct tetr next = {0};
+	static struct tetr next = {0};
 	gettetrom(&next, *tetrom_seq);
 	game->next = &next;
 	return startgame_wait(0);
