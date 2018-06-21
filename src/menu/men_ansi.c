@@ -12,11 +12,7 @@ int startupmenu(int i)
 {
 	while (1) {
 		print_vitetris_ver(19, 4);
-		newln(0);
-		newln(19);
-		printstr("Written by"); newln(19);
-		printstr("Victor Nilsson"); newln(19);
-		printstr("2007-2009");
+
 		i = startup_menu(i-1, 1, 4);
 # ifndef TTY_SOCKET
 		if (!i)

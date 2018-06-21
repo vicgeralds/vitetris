@@ -81,39 +81,11 @@ void setcolorpair(int clr)
 	set_color_pair(clr);
 }
 
-static void print_copyright()
-{
-	BITMAP *bmp;
-	int x, y = SCREEN_H-16;
-	int fg = makecol(170, 170, 170);
-	int i;
-	if (is_windowed_mode())
-		bmp = virt_screen;
-	else
-		bmp = screen;
-	textout_ex(bmp, font, "Copyright   2007-2009 Victor Nilsson",
-		   8, y, fg, 0);
-	/* draw copyright symbol */
-	x = 88;
-	vline(bmp, x, y+2, y+5, fg);
-	vline(bmp, x+7, y+2, y+5, fg);
-	vline(bmp, x+2, y+3, y+4, fg);
-	for (i=1; i > -2; i -= 2) {
-		hline(bmp, x+2, y, x+5, fg);
-		y += i;
-		putpixel(bmp, x+1, y, fg);
-		putpixel(bmp, x+6, y, fg);
-		hline(bmp, x+3, y+i, x+4, fg);
-		y += 6;
-	}
-}
-
 void textgfx_entermenu()
 {
 	clear_bitmap(virt_screen);
 	margin_x = getmargin_x();
 	win_y = 1;
-	print_copyright();
 	draw_tetris_logo(0, 0);
 	print_vitetris_ver(19, 4);
 }

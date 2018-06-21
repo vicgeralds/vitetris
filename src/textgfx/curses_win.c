@@ -112,10 +112,6 @@ static void print_ver_author()
 		window = stdscr;
 		attrset(A_NORMAL);
 		print_vitetris_ver(-margin_x, 0);
-		y = term_height-3;
-		mvaddstr(y,  0, "Written by");
-		mvaddstr(y+1,0, "Victor Nilsson");
-		mvaddstr(y+2,0, "2007-2009");
 	}
 }
 #endif
