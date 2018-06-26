@@ -1,3 +1,8 @@
+2018-06-26: version 0.57.1
+
+  * Fix next piece disappearing after unpausing
+  * Remove author credits from menu/game
+
 2009-09-13: version 0.57
 
   * Allegro: fixed awkward array overrun when there are more than two
@@ -26,7 +31,6 @@
   * Fixed a few netplay things.
   * Fixed a few keyboard setup things.
   * Fixed some other small things.
-    I fancy there are no more bugs to be found.
 
 2008-10-16: version 0.54
 
