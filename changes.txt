@@ -1,3 +1,7 @@
+2018-06-28: version 0.57.2
+
+  * Update version date printed in command-line help
+
 2018-06-26: version 0.57.1
 
   * Fix next piece disappearing after unpausing
