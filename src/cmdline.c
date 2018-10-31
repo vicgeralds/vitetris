@@ -357,7 +357,7 @@ static void print_hiscorelist()
 	else {
 		printf("    Name      Score  Lvl  Lines\n");
 		gethiscorelist(buf);
-		printf(buf);
+		printf("%s", buf);
 	}
 }
 
