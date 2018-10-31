@@ -1,11 +1,14 @@
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include "menu.h"
 #include "menuext.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
 #include "../netw/sock.h"
 #include "../options.h"
+#include "../draw/draw.h"
 
 extern FILE *inet_out;
 
