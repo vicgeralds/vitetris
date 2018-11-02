@@ -300,7 +300,7 @@ static void printbtnmapping(FILE *fp, int n, int keypress, int i)
 		return;
 	fprintf(fp, "%s=", input_keynames[i]);
 	if (b < 10)
-		fprintf(fp, input_chr9[b-1]);
+		fprintf(fp, "%s", input_chr9[b-1]);
 	else
 		fprintf(fp, "%d", b-'0');
 	putc('\n', fp);
@@ -337,7 +337,7 @@ static void printkeymapping(FILE *fp, int keypress, int i)
 	if (s[0] > ' ')
 		putc(s[0], fp);
 	else if (s[0] < 10)
-		fprintf(fp, input_chr9[s[0]-1]);
+		fprintf(fp, "%s", input_chr9[s[0]-1]);
 	else
 		fprintf(fp, "%d", s[0]);
 	putc('\n', fp);
