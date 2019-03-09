@@ -208,73 +208,18 @@ if [ -n "$ZSH_VERSION" ]; then
 	emulate sh
 fi
 
-rm -f systest systest.exe
-echo $n "compiling test program... $c"
-make -fsystest.mk >/dev/null
-if [ $? -ne 0 ]
-then make -f systest.mk >/dev/null
-fi
-if [ $? -eq 0 ]; then
-	if [ -f systest.exe ]
-	then SYSTEST_OUT=`./systest.exe`
-	else SYSTEST_OUT=`./systest`
-	fi
-	if [ $? -ne 0 ]; then SYSTEST_OUT= ; fi
-else
-	SYSTEST_OUT=
-fi
-if [ -n "$SYSTEST_OUT" ]; then
-	echo ok
-else
-	echo FAILED!
-	# don't give the annoying message if these are set :-)
-	if [ -n "$CC$CFLAGS$CPPFLAGS" ]
-	then exit 1
-	fi
-	echo 'Are you sure you have "make" and a C compiler installed?'
-	echo "Or are the standard header files missing?  (If you're using a Debian-based"
-	echo 'distribution, there should be a package called "build-essential").'
-	echo 'Try to run "make -fsystest.mk".'
-	echo When that works, run configure again.
-	exit 1
-fi
-
-OS=${SYSTEST_OUT%% _*}
-echo "operating system: $OS"
-ENVIR=${OS#* }
-OS=${OS%% *}
 
 DPREFIX=/usr
-if [ "$ENVIR" = djgpp ]; then
-	if [ -n "$DJDIR" ]; then
-		echo "DJDIR is set to $DJDIR"
-		DPREFIX=$DJDIR
-	else
-		echo -n DJDIR is not set!
-		if [ -d c:/djgpp ]; then
-			echo '... but C:\DJGPP exists'
-			DPREFIX=c:/djgpp
-		else
-			echo '  I give up.'
-			exit 1
-		fi
-	fi
-elif [ "$ENVIR" = turboc ]; then
-	if [ -d c:/tc ]; then
-		DPREFIX=c:/tc
-	fi
-elif [ "$ENVIR" = mingw ]; then
-	if [ -n "$MINGDIR" ]; then
-		echo "MINGDIR is set to $MINGDIR"
-		DPREFIX=$MINGDIR
-	elif [ -d c:/mingw ]; then
-		echo 'C:\MinGW exists -- good!'
-		DPREFIX=c:/mingw
-	fi
-	if [ /usr != $DPREFIX ]; then
-		CPPFLAGS="$CPPFLAGS -I$DPREFIX/include"
-		LDFLAGS="$LDFLAGS -L$DPREFIX/lib"
-	fi
+if [ -n "$DJDIR" ]; then
+	echo "DJDIR is set to $DJDIR"
+	DPREFIX=$DJDIR
+	OS=msdos
+elif [ -n "$MINGDIR" ]; then
+	echo "MINGDIR is set to $MINGDIR"
+	DPREFIX=$MINGDIR
+	CPPFLAGS="$CPPFLAGS -I$DPREFIX/include"
+	LDFLAGS="$LDFLAGS -L$DPREFIX/lib"
+	OS=win32
 fi
 if [ "$OS" = win32 ]; then
 	LDLIBS=-lwinmm
@@ -305,23 +250,12 @@ if [ $OS != unix ]; then
 	WITH_X=
 fi  
 
-if [ -n "$ENABLE_TERM_RESIZING" ] && \
-   [ "$SYSTEST_OUT" = "${SYSTEST_OUT%SIGWINCH*}" ]
-then
-	echo 'SIGWINCH undefined, disabling term_resizing'
-	ENABLE_TERM_RESIZING=
-fi
-
 if [ -n "$PCTIMER" ] && [ $OS = msdos ]; then
 	echo -n 'checking for pctimer... '
 	PCTIMER=
-	if [ "$ENVIR" = turboc ]
-	then ver=13; comp=tc
-	else ver=14; comp=gcc
-	fi
-	for dir in pctime$ver/ "" src/; do
-		if [ -f ${dir}${comp}int8.c ]; then
-			PCTIMER=${dir}${comp}int8
+	for dir in pctime14/ "" src/; do
+		if [ -f ${dir}gccint8.c ]; then
+			PCTIMER=${dir}gccint8
 			echo $PCTIMER.c
 			break
 		fi
@@ -350,12 +284,8 @@ if [ $OS != msdos ]
 then check_lib() {
 	check_dynlib $1 $2 || test -f $1/lib$2.a
 }
-elif [ "$ENVIR" = djgpp ]
-then check_lib() {
-	test -f $1/lib$2.a
-}
 else check_lib() {
-	test -f $1/$2.lib
+	test -f $1/lib$2.a
 }
 fi
 
@@ -749,13 +679,12 @@ else
 fi
 echo >> configmk.tmp
 
-if [ "$ENVIR" = djgpp ]; then
+if [ $OS = msdos ]; then
 	echo SHELL = sh >> configmk.tmp
 fi
 if [ $OS = unix ]; then
 	echo UNIX = y >> configmk.tmp
-fi
-if [ $OS != unix ] || [ "$ENVIR" = cygwin ]; then
+else
 	echo EXE = .exe >> configmk.tmp
 fi
 if [ -n "$CC" ]; then
@@ -820,10 +749,6 @@ else echo '#XLIB_INC =' >> configmk.tmp
 fi
 
 echo LDFLAGS = $LDFLAGS >> configmk.tmp
-if [ -n "$WITH_CURSES" ] && [ $WITH_CURSES = "${WITH_CURSES%.*}" ] && \
-   [ $OS = msdos ] && [ "$ENVIR" != djgpp ]
-then WITH_CURSES=${WITH_CURSES#-l}.lib
-fi
 if [ "x$WITH_ALLEGRO" != "x${WITH_ALLEGRO%_s}" ]
 then
 	echo 'LDLIBS  = -lalleg_s -lkernel32 -luser32 -lgdi32 -lcomdlg32 -lole32 -ldinput -lddraw -ldxguid -ldsound'	   >> configmk.tmp
@@ -888,7 +813,4 @@ done
 echo
 echo
 echo '(If you wish to change anything, run "configure help" for options.)'
-if [ $OS = msdos ] && [ "$ENVIR" != djgpp ]
-then echo Now run dosmake.bat
-else echo Now run make
-fi
+echo Now run make
