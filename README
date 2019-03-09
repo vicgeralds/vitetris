@@ -70,14 +70,10 @@ Options
   preference.  In netplay, the single player configuration is used.
 
 
-The Command Line Is Your Friend
--------------------------------
+Command Line
+------------
 
-  Actually, you can do pretty much everything from the menus, even netplay
-  (since version 0.54) if you only want to connect to a server.  But still,
-  you will always get a little more from the command line.
-
-  Use "tetris -help" (or whatever the command name is) to get a help message
+  Run "tetris -help" (or whatever the command name is) to get a help message
   with a list of command-line options.  If you're on Windows, you need to
   run this from a cmd window, or a "DOS window".
 
@@ -86,21 +82,6 @@ The Command Line Is Your Friend
 
 Network Play
 ------------
-
-  The easiest way to do netplay is to connect to a vitetris game server from
-  the "Netplay" menu.  Just type the address of the server and press ENTER.
-  If there are other players connected and available, they will be listed.
-  You will not appear as available to others until "Waiting for opponent..."
-  is displayed.
-
-  Check http://victornils.net/tetris/#servers for public servers.
-
-  My game server is included in the source distribution.  The old one
-  described below is also included, if you want something really simple.
-
-
-Network Play: The Traditional Way
----------------------------------
 
   To play against someone on the internet, one needs to listen with
 
@@ -140,25 +121,6 @@ Gamepad Start Button
 
   where NUM is the button number.
 
-
-Different Versions, Library Dependencies
-----------------------------------------
-
-  The original idea was to make a simple Tetris with no library dependencies
-  other than libc, which would compile in one second on any Linux system.
-  (Btw, one big motivation was that I couldn't find any good Tetris clone 
-  for Linux which suited my taste.)
-
-  Then some Xlib code was added, to detect lost window focus (and terminal
-  resize, before I knew about SIGWINCH).  If you have a binary which is
-  linked against libX11 (find out with ldd), it will not run on a system
-  without X.
-
-  vitetris can use a curses library (ncurses, PDCurses) to do cursor
-  movement, set display attributes, read keys, etc.  There is also a version
-  for Allegro (a game library), which displays text in graphics mode using a
-  VGA font.
- 
 
 Credits
 -------
