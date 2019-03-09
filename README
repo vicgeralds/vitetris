@@ -104,12 +104,6 @@ Network Play
   bring up a list of ttys.  When the tty of the other player is selected, an
   invitation will appear on his screen.
 
-  I have written a simple game server which is included in the source 
-  distribution.  Both players connect to this server, which means that
-  there's no need to agree on who's to listen and who's to connect, and it
-  works behind firewalls.  More than two players can be connected at the same
-  time, so one could make random connects if there are many active players.
-
 
 Gamepad Start Button
 --------------------
