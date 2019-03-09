@@ -232,16 +232,6 @@ if [ "$OS" = win32 ]; then
 	done
 elif [ "$OS" != msdos ]; then
 	OS=unix
-	SED_CMD='s/\$(MAKE) -C\([a-z/]*\)/cd \1; $(MAKE)/'
-	echo sed $SED_CMD Makefile src/Makefile
-	if sed "$SED_CMD" Makefile > Makefile.tmp
-	then mv Makefile.tmp Makefile
-	else rm -f Makefile.tmp
-	fi
-	if sed "$SED_CMD" src/Makefile > src/Makefile.tmp
-	then mv src/Makefile.tmp src/Makefile
-	else rm -f src/Makefile.tmp
-	fi
 fi
 if [ $OS != unix ]; then
 	if [ "$PREFIX" = "$default_prefix" ]; then
