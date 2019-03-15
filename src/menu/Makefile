@@ -1,11 +1,12 @@
 include ../src-conf.mk
 
 OBJS = menucore.o dropdown.o inputset.o inputdev.o \
-       gamemenu.o gm_2p.o gm_sock.o \
-       hslist.o gameover.o
+       gamemenu.o gm_2p.o hslist.o gameover.o
 
-EXT_OBJS = startup.o invit.o netplay.o \
-	   optsmenu.o blockstyle.o men_$(BACKEND).o
+EXT_OBJS = startup.o optsmenu.o blockstyle.o men_$(BACKEND).o
+
+#OBJS += gm_sock.o
+#EXT_OBJS += netplay.o
 
 HEADERS = menu.h ../input/input.h ../textgfx/textgfx.h
 
@@ -51,9 +52,6 @@ gameover.o: gameover.c $(HEADERS) ../hiscore.h ../draw/draw.h ../game/tetris.h
 startup.o: startup.c menu.h menuext.h ../options.h ../game/tetris.h \
 							../src-conf.mk
 	$(CC) $(CCFLAGS) -I.. -c startup.c $(DINET)
-
-invit.o: invit.c $(HEADERS) menuext.h ../draw/draw.h ../netw/sock.h
-	$(CC) $(CCFLAGS)  -c invit.c
 
 netplay.o: netplay.c $(HEADERS) menuext.h ../netw/sock.h ../options.h
 	$(CC) $(CCFLAGS)  -c netplay.c

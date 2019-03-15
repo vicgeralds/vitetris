@@ -4,17 +4,13 @@ OBJS = input.o keyboard.o joystick.o playerin.o
 
 default: $(BACKEND)
 
-unixterm: $(OBJS) inp_unixterm.o escseq.o select.o $(joylinux_obj)
+con: $(OBJS) inp_con.o
 	rm -f input.a
-	ar rcs input.a $(OBJS) inp_unixterm.o escseq.o select.o $(joylinux_obj)
+	ar rcs input.a $(OBJS) inp_con.o
 
 curses: $(OBJS) inp_curses.o $(joylinux_obj) $(select_obj)
 	rm -f input.a
 	ar rcs input.a $(OBJS) inp_curses.o $(joylinux_obj) $(select_obj)
-
-conio: $(OBJS) inp_con.o
-	rm -f input.a
-	ar rcs input.a $(OBJS) inp_con.o
 
 allegro: $(OBJS) inp_allegro.o $(select_obj)
 	rm -f input.a
@@ -30,18 +26,6 @@ keyboard.o: keyboard.c keyboard.h input.h escseq.h \
 	$(CC) $(CCFLAGS) -I.. $(DTWOPLAYER) $(DCURSES) $(DALLEGRO) -c keyboard.c
 
 joystick.o: joystick.c joystick.h input.h ../timer.h
-joylinux.o: joylinux.c joystick.h input.h ../timer.h ../options.h
-
-inp_unixterm.o: inp_unixterm.c termin.h keyboard.h escseq.h input.h select.h \
-		joystick.h ../src-conf.mk
-	$(CC) $(CCFLAGS) $(DJOYSTICK) $(DSOCKET) -c inp_unixterm.c
-
-escseq.o: escseq.c escseq.h input.h termin.h ../src-conf.mk
-	$(CC) $(CCFLAGS) $(DTWOPLAYER) -c escseq.c
-
-select.o: select.c select.h input.h ../textgfx/textgfx.h \
-		../config.h ../config2.h
-	$(CC) $(CCFLAGS) -I.. -c select.c
 
 inp_curses.o: inp_curses.c termin.h  keyboard.h  input.h
 	$(CC) $(CCFLAGS) $(CURSES_INC) -c inp_curses.c
@@ -62,4 +46,4 @@ clean:
 	rm -f input.a *.o
 	rm -f inp_c~70.o inp_a~m7.o
 
-.PHONY: default unixterm curses con allegro clean
+.PHONY: default curses con allegro clean

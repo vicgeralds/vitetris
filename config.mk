@@ -2,34 +2,28 @@
 # Included in Makefile and src/Makefile.
 # This file will be overwritten by the configure script.
 
-prefix = /usr/local
-bindir = $(prefix)/bin
-datarootdir = $(prefix)/share
-docdir     = $(datarootdir)/doc/vitetris
-pixmapdir  = $(datarootdir)/pixmaps
-desktopdir = $(datarootdir)/applications
+prefix = c:\vitetris
+bindir = $(prefix)
+docdir = $(prefix)
 
-datadir = $(datarootdir)/allegro
-#datadir = $(datarootdir)/allegro/vitetris
+#SHELL = sh
+EXE = .exe
 
-UNIX = y
-#EXE = .exe
+#CC = tcc
+#MODEL = -ml
+#CFLAGS = $(MODEL) -O
 
 TWOPLAYER = y
 #JOYSTICK = y
-NETWORK = y
-TTY_SOCKET = y
-TERM_RESIZING = y
+#NETWORK = y
 MENU = y
 BLOCKSTYLES = y
 
-INPUT_SYS = unixterm
-#CURSES = y
+#INPUT_SYS = conio
+CURSES = y
 #ALLEGRO = y
-#XLIB = y
-#XLIB_INC =
-LDFLAGS =
-LDLIBS  = $(LIBS)
+LDFLAGS = $(MODEL)
+LDLIBS  = -lpdcurses -lemu $(LIBS)
 
 # DOS millisecond granularity
 #PCTIMER = pctime14/gccint8

@@ -1,0 +1,17 @@
+  If you're in plain DOS, it's likely that you don't have a DPMI server
+  installed, which is required to run TETRIS.EXE.
+
+  That is why I have included CWSDPMI, which will be loaded automatically if
+  needed.  CWSDPMI is free; the full binary distribution and the source code
+  can be downloaded at http://clio.rice.edu/cwsdpmi/.
+
+  See CWSDPMI.DOC for more info.
+
+  TETRIS16.EXE is a 16-bit version which uses the ANSI.SYS driver.  You will
+  just get garbled text if it is not loaded.  There should be a line like
+  this in your CONFIG.SYS:
+
+        DEVICE=C:\DOS\ANSI.SYS
+
+  There are also free replacements available which might work even better,
+  NANSI.SYS and NNANSI.SYS.

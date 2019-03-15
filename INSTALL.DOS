@@ -1,0 +1,41 @@
+  This is a source distribution for DOS.  All files have DOS line endings and
+  some additional scripts are provided.  I have also included two versions of
+  PCTIMER from http://technology.chtsai.org/pctimer/.
+
+  If you use DJGPP and want to compile the standard version, just run:
+
+	dosmake.bat
+
+  If that fails, make sure you have all of the following packages installed.
+  You can also install bash and run "make" to see if that works better.
+
+	gcc*b.zip
+	bnu*b.zip
+	mak*b.zip
+	fil*b.zip
+	pdcur*b.zip
+
+  Edit config.mk if you want to disable any features, etc.  If you have bash
+  installed, you can run "bash configure ..." instead.  Example:
+
+	bash configure curses 2p= menu=
+
+  See INSTALL for more information.
+
+  To compile with Turbo C 2.01 or Turbo C++ 1.01, follow these steps:
+
+  1. Unzip pctime13.zip.
+  2. Uncomment the line "#CC = tcc" in config.mk.
+  3. Uncomment "#INPUT_SYS = conio" as well.
+  4. Comment out "CURSES = y" and "LDLIBS = -lpdcurses ...".
+  5. Change the lines at the end of config.mk to:
+	PCTIMER = tcint8
+	PCTIMER_INC = -I..
+  6. Make sure that no other make is in your path, or set MAKE=\tc\bin\make
+     for example.
+  7. Run dosmake.bat.
+
+  Then run tetris.exe.  If you get garbled text, press ESC.  You need to load
+  the ansi.sys driver in config.sys.  Add the following line and reboot.
+
+	device=c:\dos\ansi.sys

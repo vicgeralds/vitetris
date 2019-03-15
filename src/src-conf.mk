@@ -1,24 +1,20 @@
-CCFLAGS = $(CFLAGS) $(CPPFLAGS)
-#CFLAGS = -O2 -Wall -pedantic -Wno-parentheses
+# src\src-conf.mk
+CC = gcc
 CFLAGS = -O2
+#CFLAGS = -O2 -Wall -pedantic -Wno-parentheses
+CCFLAGS = $(CFLAGS) $(CPPFLAGS)
+OBJEXT = .o
+LIBEXT = .a
 DTWOPLAYER = -DTWOPLAYER=1
-tetris2p_obj = tetris2p.o
+tetris2p_obj = tetris2p$(OBJEXT)
 #DJOYSTICK = -DJOYSTICK=1
-#joylinux_obj = joylinux.o
-select_obj = select.o
-#BACKEND = curses
-#DCURSES = -DCURSES=1
-BACKEND = ansi
+BACKEND = curses
+DCURSES = -DCURSES=1
+#BACKEND = ansi
 #BACKEND = allegro
 #DALLEGRO = -DALLEGRO=1
-#DXLIB = -DXLIB=1
-DTERM_RESIZING = -DTERM_RESIZING=1
 #DNO_MENU = -DNO_MENU=1
-menuext_lib = menuext.a
+menuext_lib = menuext$(LIBEXT)
 #DNO_BLOCKSTYLES = -DNO_BLOCKSTYLES=1
-netw_lib = netw.a
-DSOCKET = -DSOCKET=1
-DINET = -DINET=1
-inet_obj = inet.o
-DTTY_SOCKET = -DTTY_SOCKET=1
-tty_socket_obj = tty_socket.o
+#DPCTIMER = -DPCTIMER=1
+#pctimer_obj = pctimer$(OBJEXT)
