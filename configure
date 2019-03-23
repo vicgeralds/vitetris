@@ -326,7 +326,7 @@ add_path_ldflags() {
 		fi
 	done
 	if [ -n "$libpath" ]; then
-		LDFLAGS="$LDFLAGS $libpath"
+		LDFLAGS="$LDFLAGS $libpath -Wl,-R${libpath#-L}"
 	fi
 }
 
