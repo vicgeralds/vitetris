@@ -5,7 +5,7 @@
 #include "sock.h"
 #include "../game/tetris2p.h"
 #include "../input/input.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 
 int handle_server_message();	/* comm_inet.c */
 
@@ -25,10 +25,10 @@ void sock_initgame()
 	static char saved_lineslimit;
 	opponent_name[0] = '\0';
 	if (sock_flags & CONN_PROXY) {
-		game->mode = saved_mode;
+		game.mode = saved_mode;
 		player1.lineslimit = saved_lineslimit;
 	} else {
-		saved_mode = game->mode;
+		saved_mode = game.mode;
 		saved_lineslimit = player1.lineslimit;
 		if (is_server)
 			playerlist_n = 0;
@@ -47,7 +47,7 @@ static void initgame_response()
 {
 	char s[3] = "m";
 	sock_sendplayer();
-	s[1] = game->mode;
+	s[1] = game.mode;
 	s[2] = player1.lineslimit;
 	writebytes(s, 3);
 }
@@ -56,7 +56,7 @@ void sock_sendplayer()
 {
 	char s[3] = "p";
 	s[1] = player1.startlevel;
-	s[2] = player1.rotationsys;
+	s[2] = player1.rotation;
 	writebytes(s, 3);
 }
 
@@ -69,7 +69,7 @@ static void recvplayer()
 			return;
 		}
 		player2.startlevel = s[0];
-		player2.rotationsys = s[1];
+		player2.rotation = s[1];
 		writebytes("N_", 2);
 	}
 }
@@ -78,7 +78,7 @@ static void set_level_height(int flags)
 {
 	char s[2];
 	int n;
-	if (readbytes(s, 2) && !(flags & IN_GAME) && !game_over) {
+	if (readbytes(s, 2) && !(flags & IN_GAME) && game.state != GAME_OVER) {
 		n = s[0]-'0';
 		if (n >= 0 && n <= 9)
 			player1.startlevel = n;
@@ -116,7 +116,8 @@ static int getkey_cancel()
 int sock_wait_pl2ingame()
 {
 	print_game_message(1, "WAIT", 1);
-	game->next = NULL;
+	player1.next = NULL;
+	player2.next = NULL;
 	while (!(sock_flags & CONNECTED))
 		if (getkey_cancel())
 			return 0;
@@ -221,7 +222,7 @@ static void recvboard()
 	}
 	if (!recvboard_read(s, n) || !tetrom_seq)
 		return;
-	if (!game->state)
+	if (game.state == GAME_CREATED)
 		m = p1_height_lines();
 	if (!player1.height && sock_flags & SAME_HEIGHT) {
 		m = n;
@@ -241,7 +242,7 @@ static void recvboard()
 	if (n == m)
 		copy_same_height(n);
 	redrawboard(&player2, 19);
-	if (!game_running)
+	if (game.state != GAME_RUNNING)
 		print_press_key();
 }
 
@@ -268,7 +269,7 @@ void sock_sendnext(const struct player *p, char n)
 {
 	char s[3] = "n";
 	if (sock_flags & PL2_IN_GAME) {
-		s[1] = '1'+(p == game->player);
+		s[1] = '1'+(p == game.player);
 		s[2] = n;
 		writebytes(s, 3);
 	}
@@ -276,6 +277,7 @@ void sock_sendnext(const struct player *p, char n)
 
 static void recvnext()
 {
+	struct player *plr;
 	struct tetr next;
 	char s[2];
 	char *p = tetrom_seq;
@@ -292,10 +294,11 @@ static void recvnext()
 	if (*p != 0x7F)
 		p++;
 	else {
-		gettetrom(&next, s[1]);
-		drawnext(game->player+(*s=='2'), &next);
-		if (game->next)
-		    *game->next = next;
+		plr = game.player+(*s=='2');
+		gettetrom(&next, s[1], plr->rotation);
+		drawnext(plr, &next);
+		if (plr->next)
+			*plr->next = next;
 	}
 	*p = s[1];
 }
@@ -317,7 +320,7 @@ static void recvpiece()
 	struct player *p = &player2;
 	struct tetr t;
 	char bl[2];
-	if (!readbytes(bl, 2) || !game_running)
+	if (!readbytes(bl, 2) || game.state != GAME_RUNNING)
 		return;
 	if (tetris2p[1].delay) {
 		if (*tetris2p[1].clearedlines) {
@@ -373,6 +376,7 @@ void sock_sendwinner()
 
 int sock_getkeypress(int flags)
 {
+	int game_over = game.state == GAME_OVER;
 	signed char b;
 	if (!waitinput_sock(0))
 		return 0;
@@ -455,8 +459,9 @@ int sock_getkeypress(int flags)
 	case 'm':
 		if (!(sock_flags & CONN_PROXY))
 			playerlist_n = 0;
-		readbytes(&game->mode, 1);
+		readbytes(&b, 1);
 		readbytes(&player1.lineslimit, 1);
+		game.mode = b;
 		player2.lineslimit = player1.lineslimit;
 		break;
 	case 'n':
@@ -472,7 +477,7 @@ int sock_getkeypress(int flags)
 		break;
 	case 'w':
 		if (readbytes(&b, 1) && b >'0' && b <= '3') {
-			winner = game->player + (b-'1');
+			winner = game.player + (b-'1');
 			return '.';
 		}
 		break;

@@ -7,13 +7,13 @@ void upd_termresize() {}
 
 #ifdef CURSES
 #include <curses.h>
-#include "curs.h"
-#else
-#include "ansivt.h"	/* menuheight */
+extern WINDOW *window, *wins[6];
 #endif
 #include "../game/tetris.h"
-#include "../draw/draw.h"
-#include "../netw/sock.h"
+#include "../draw.h"
+#include "../net/sock.h"
+
+extern char menuheight;
 
 static void resizehandler(int sig)
 {
@@ -31,16 +31,16 @@ static void entergame_redraw()
 	menuheight = 1;
 #endif
 	textgfx_entergame();
-	if (!TWOPLAYER_MODE)
+	if (!twoplayer_mode)
 		drawgamescreen_1p();
 	else
 		drawgamescreen_2p();
-	if (game->next) {
+	if (player1.next) {
 		refreshwin(0);
 		print_press_key();
 	}
 #ifdef SOCKET
-	if (game->mode & MODE_NETWORK && CONNECTED !=
+	if (game.mode & MODE_NET && CONNECTED !=
 				(sock_flags & (CONNECTED | WAIT_PL2INGAME)))
 		print_game_message(1, "WAIT", 1);
 #endif
@@ -75,14 +75,14 @@ static void resizegamerunning()
 	WINDOW *next2 = NULL;
 	int i, x, y;
 	wins[WIN_NEXT] = NULL;
-	if (TWOPLAYER_MODE) {
+	if (twoplayer_mode) {
 		next2 = wins[WIN_NEXT+1];
 		wins[WIN_NEXT+1] = NULL;
 	}
 	entergame_redraw();
 	touchwin(wins[1]);
 	wrefresh(wins[1]);
-	if (TWOPLAYER_MODE) {
+	if (twoplayer_mode) {
 		touchwin(wins[2]);
 		wrefresh(wins[2]);
 	}
@@ -96,7 +96,7 @@ static void resizegamerunning()
 		overlay(next, wins[i]);
 		delwin(next);
 		wrefresh(wins[i]);
-		if (TWOPLAYER_MODE && next != next2) {
+		if (twoplayer_mode && next != next2) {
 			next = next2;
 			i++;
 			continue;
@@ -111,9 +111,9 @@ void upd_termresize()
 #if !CURSES || KEY_RESIZE
 	int w, h;
 	if (!(textgfx_flags & TERM_RESIZED) ||
-	    !in_menu && game && game->state & (GAME_OVER
+	    !in_menu && (game.state == GAME_OVER
 # ifndef CURSES
-					| GAME_RUNNING
+			|| game.state == GAME_RUNNING
 # endif
 					))
 		return;
@@ -132,7 +132,7 @@ void upd_termresize()
 		return;
 	}
 	resizeterm(term_height, term_width);
-	if (game && game_running) {
+	if (game.state == GAME_RUNNING) {
 		resizegamerunning();
 		return;
 	}
@@ -146,9 +146,9 @@ void upd_termresize()
 		clearbox(w, 21, 0, term_height-21);
 	}
 # endif
-	drawnext(&player1, game->next);
-	if (TWOPLAYER_MODE)
-		drawnext(&player2, game->next);
+	drawnext(&player1, player1.next);
+	if (twoplayer_mode)
+		drawnext(&player2, player2.next);
 #endif
 }
 #endif /* SIGWINCH */

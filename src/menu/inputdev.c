@@ -1,12 +1,14 @@
+/* Menu items for selecting input devices
+   when there are more than one */
+
 #include <string.h>
 #include <ctype.h>
 #include "menu.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
 #include "../options.h"
-#undef JOYSTICK
-#define JOYSTICK 1
-#include "internal.h"
+
+void inp_printkeys(int dev, int x, int y);
 
 static char devices_str[14];
 
@@ -15,7 +17,7 @@ static void upd_devstr()
 	strcpy(devices_str, "keybd js0 js1");
 	if (num_joyst == 1)
 		inputdevs_fd[2] = -1;
-	if (num_joyst && (inputdevs_fd[1] > -1 || inputdevs_fd[2] > -1)) {
+	if (num_joyst && (inputdevs_fd[1] >= 0 || inputdevs_fd[2] >= 0)) {
 		if (inputdevs_fd[2] < 0)
 			devices_str[9] = '\0';
 		if (inputdevs_fd[1] < 0) {
@@ -102,7 +104,6 @@ static int inp_devhandler(int keypr, int *pos)
 		strncpy(v.str, dev, 4);
 		setoption(sect_name, "input", v, 1);
 	}
-#if TWOPLAYER
 	if (player_) {
 		i = getdev(dev);
 		inputdevs_player[i] = player_;
@@ -112,7 +113,6 @@ static int inp_devhandler(int keypr, int *pos)
 				inputdevs_player[0] = 0;
 		}
 	}
-#endif
 	if (keypr) {
 		*pos = 1;
 		return 2;
@@ -141,7 +141,6 @@ int inp_devlist(int *dev, int x, int y)
 	return 1;
 }
 
-#ifndef NO_MENU
 int inputsetup_menuitem(int k, int *pos)
 {
 	int i = 0;
@@ -160,4 +159,3 @@ int inputsetup_menuitem(int k, int *pos)
 	}
 	return 0;
 }
-#endif

@@ -3,10 +3,17 @@
 #include "tetris.h"
 #include "../timer.h"
 #include "../input/input.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 
-struct game *game = NULL;
-char clearedlines[4];
+static char sevenbag[8] = {0,0,0,0,0,0,0,7};
+static int tm_40L;
+
+static const short tetroms[4][7] = {
+	{TETR_I,  TETR_J,  TETR_L,  TETR_O, TETR_S,  TETR_T,  TETR_Z },
+	{TETR_I2, TETR_J2, TETR_L2, TETR_O, TETR_S2, TETR_T2, TETR_Z2},
+	{TETR_I,  TETR_J3, TETR_L3, TETR_O, TETR_S,  TETR_T3, TETR_Z },
+	{TETR_I2, TETR_J4, TETR_L4, TETR_O, TETR_S2, TETR_T4, TETR_Z2}
+};
 
 #define RETURN_ON_INPUT 4
 
@@ -18,39 +25,54 @@ int randnum(int n)
 	return (int) (n*(rand()/(RAND_MAX+1.0)));
 }
 
-void gettetrom(struct tetr *t, int i)
+/* 7-bag random generator */
+static void sevenbag_gen()
 {
+	int nums[7] = {0,1,2,3,4,5,6};
+	div_t q;
+	int d = 720;
+	int i, j;
+	q.rem = randnum(5040);
+	for (i=0; i<6; i++) {
+		q = div(q.rem, d);
+		sevenbag[i] = nums[q.quot];
+		for (j=q.quot; j < 6-i; j++)
+			nums[j] = nums[j+1];
+		d /= 6-i;
+	}
+	sevenbag[6] = nums[0];
+	sevenbag[7] = 0;
+}
+
+static int sevenbag_next()
+{
+	int i;
+	if (sevenbag[7] >= 7)
+		sevenbag_gen();
+	i = sevenbag[7];
+	sevenbag[7]++;
+	return sevenbag[i];
+}
+
+int rand_tetrom_next()
+{
+	if (game.mode & MODE_40L)
+		return sevenbag_next();
+	return randnum(7);
+}
+
+void gettetrom(struct tetr *t, int i, int rot)
+{
+	int state = 0;
+	if (rot & ROT_MODERN)
+		state = 2;
+	t->blocks = tetroms[state][i];
 	t->x = 3;
 	t->y = -3;
-	switch (i) {
-	case 0:
-		t->y = -4;
-		t->blocks = TETR_I;
-		break;
-	case 1:
-		t->blocks = TETR_J;
-		break;
-	case 2:
-		t->blocks = TETR_L;
-		break;
-	case 3:
-		t->y = -2;
-		t->blocks = TETR_O;
-		break;
-	case 4:
-		t->blocks = TETR_S;
-		break;
-	case 5:
-		t->blocks = TETR_T;
-		break;
-	case 6:
-		t->blocks = TETR_Z;
-		break;
-	default:
-		t->blocks = 0;
-		return;
-	}
 	t->color = tetrom_colors[i];
+	t->state = state;
+	if (i==0) t->y = -4;
+	if (i==3) t->y = -2;
 }
 
 int hitbtm(struct tetr *p, struct player *plr)
@@ -103,8 +125,7 @@ static void levelup(struct player *p)
 
 static void upd_score_level(struct player *p, int n)
 {
-	int lines;
-	if (!(game->mode & MODE_2PLAYER)) {
+	if (!(game.mode & (MODE_2P | MODE_40L))) {
 		switch (n) {
 		case 1:
 			p->score += 40*(p->level+1);
@@ -119,22 +140,23 @@ static void upd_score_level(struct player *p, int n)
 			p->score += 1200*(p->level+1);
 		}
 	}
-	if (game->mode & MODE_BTYPE) {
+						/* 10:00.00 */
+	if (game.mode == MODE_1P_40L && p->score >= 60000)
+		p->piece.y = -1;
+	if (game.mode & MODE_LINECLEAR) {
 		p->lines -= n;
-		lines = p->lineslimit - p->lines;
 		if (p->lines <= 0) {
 			p->lines = 0;
 			p->piece.y = -1;
 		}
 	} else {
 		p->lines += n;
-		lines = p->lines;
-	}
-	if (p->level == p->startlevel) {
-		if (lines >= 10*p->startlevel+10 || lines >= 100)
+		if (p->level == p->startlevel) {
+			if (p->lines >= 10*p->startlevel+10 || p->lines >= 100)
+				levelup(p);
+		} else if (p->lines/10 != (p->lines-n)/10)
 			levelup(p);
-	} else if (lines/10 != (lines-n)/10)
-		levelup(p);
+	}
 }
 
 static void clearlines(struct player *p, int n)
@@ -143,7 +165,7 @@ static void clearlines(struct player *p, int n)
 	unsigned char lines[4];
 	int i;
 	upd_score_level(p, n);
-	memcpy(lines, clearedlines, 4);
+	memcpy(lines, game.clearedlines, 4);
 	for (i = 0; i < n; i++)
 		board[lines[i]-1] = 0;
 	while (n--) {
@@ -161,31 +183,49 @@ static void clearlines(struct player *p, int n)
 
 static void draw_lineclear_anim(int n)
 {
+	const char *lines = game.clearedlines;
 	int x, i;
 	int t = gettm(0);
 	int tm;
 	for (x = 4; x >= 0; x--) {
 		for (i = 0; i < n; i++) {
-			clearblocks(&player1, 1, x, clearedlines[i]-1);
-			clearblocks(&player1, 1, 9-x, clearedlines[i]-1);
+			clearblocks(&player1, 1, x, lines[i]-1);
+			clearblocks(&player1, 1, 9-x, lines[i]-1);
 		}
 		tm = CLEAR_DELAY/5;
 		tm = (5-x)*tm-gettm(t)+t;
 		processinput(tm, DISCARD_MOVES | NO_PAUSE);
 	}
-	redrawboard(&player1, clearedlines[n-1]-1);
+	redrawboard(&player1, lines[n-1]-1);
+}
+
+int test_lockdelay_move(struct player *plr)
+{
+	struct tetr      *p  = &plr->piece;
+	struct lockdelay *ld = &plr->lockdelay;
+	int i;
+	for (i=0; i < ld->num_moves; i++) {
+		if (p->blocks == ld->moves[i].blocks &&
+		    p->x      == ld->moves[i].x  &&
+		    p->y      == ld->moves[i].y)
+			return 0;
+	}
+	if (i >= LOCK_DELAY_MOVES)
+		return 0;
+	ld->num_moves++;
+	ld->moves[i].blocks = p->blocks;
+	ld->moves[i].x  = p->x;
+	ld->moves[i].y  = p->y;
+	return 1;
 }
 
 static int lockdelay()
 {
-	struct tetr *p = &player1.piece;
 	int t = gettm(0);
 	int d = 0;
-	int x1, x2;
-	int b1, b2;
 
-	x1 = x2 = p->x;
-	b1 = b2 = p->blocks;
+	player1.lockdelay.num_moves = 0;
+
 	while (d < LOCK_DELAY) {
 		switch (processinput(LOCK_DELAY-d, RETURN_ON_INPUT)) {
 		case -2:
@@ -193,29 +233,18 @@ static int lockdelay()
 		case 0:
 			return 0;
 		}
-		if (!hitbtm(p, &player1))
+		if (!hitbtm(&player1.piece, &player1))
 			return 1;
-		if (p->x != x2) {
-			if (p->x == x1)
-				break;
-			x1 = x2;
-			x2 = p->x;
-		} else if (p->blocks != b2) {
-			if (p->blocks == b1)
-				break;
-			b2 = p->blocks;
-		} else
-			d = -1;
-		if (d == -1)
-			d = gettm(t)-t;
-		else {
-			d = gettm(t)-t-LOCK_DELAY+d;
+		if (test_lockdelay_move(&player1)) {
+			/* reset lock delay */
+			d = gettm(t)-t-LOCK_DELAY;
 			if (d < 0)
 				d = 0;
 			else if (d > LOCK_DELAY-10)
 				d = LOCK_DELAY-10;
 			t = gettm(0)-d;
-		}
+		} else
+			d = gettm(t)-t;
 	}
 	return 0;
 }
@@ -228,6 +257,7 @@ void lockpiece(struct player *plr)
 
 	if (!p->blocks)
 		return;
+	plr->initrot = 0;
 	drawblocks(plr, p->blocks, p->x, p->y, DRAW_BLOCKS);
 	hide_dropmarker(plr);
 	while (!(p->blocks & 15)) {
@@ -238,7 +268,7 @@ void lockpiece(struct player *plr)
 		p->blocks = 0;
 		return;
 	}
-	memset(clearedlines, 0, 4);
+	memset(game.clearedlines, 0, 4);
 	y = p->y;
 	do {
 		x = 0;
@@ -251,14 +281,14 @@ void lockpiece(struct player *plr)
 			if (!(plr->board[y]>>3*x & 7))
 				break;
 		if (x == 10)
-			clearedlines[n++] = y+1;
+			game.clearedlines[n++] = y+1;
 		y++;
 	} while (p->blocks >>= 4);
 	x = plr->level;
 	if (n)
 		clearlines(plr, n);
 	upd_stat(plr, x != plr->level);
-	if (n && !(game->mode & MODE_2PLAYER))
+	if (n && !(game.mode & MODE_2P))
 		draw_lineclear_anim(n);
 }
 
@@ -386,7 +416,7 @@ void moveleft(struct player *plr)
 
 static void drop_score()
 {
-	if (!(game->mode & MODE_2PLAYER))
+	if (!(game.mode & (MODE_2P | MODE_40L)))
 		player1.score++;
 }
 
@@ -429,7 +459,7 @@ int movedown(struct player *plr, int drop)
 	}
 	plr->mvright_tm = 0;
 	plr->mvleft_tm = 0;
-out:	upd_screen(1+(plr > game->player));
+out:	upd_screen(1+(plr > game.player));
 	return 1;
 }
 
@@ -441,10 +471,16 @@ static int can_rotate(int bl, int x, int y, uint_least32_t *board)
 		i += !(bl & 0x444);
 	if (x-i > 6)
 		return 0;
-	if (x + !(bl & 0x111) < 0)
+	while (x < 0 && !(bl & 0x111)) {
+		bl >>= 1;
+		x++;
+	}
+	if (x < 0)
 		return 0;
 	while (y < 0 || !(bl & 15)) {
 		bl >>= 4;
+		if (!bl)
+			return 1;
 		y++;
 	}
 	x *= 3;
@@ -465,159 +501,157 @@ static int can_rotate(int bl, int x, int y, uint_least32_t *board)
 	return 1;
 }
 
-static void rotate_JL(struct player *plr, int bl)
+static int
+test_wallkicks(struct player *plr, int bl, int *xp, int *yp, int state)
 {
 	struct tetr *p = &plr->piece;
-	int x = p->x;
-	int y = p->y;
-	if (can_rotate(bl, x, y, plr->board)) {
-		drawpiece(plr, bl, x, y);
-		clearblocks(plr, p->blocks ^ 0x20, x, y);
-		p->blocks = bl;
+	int x = *xp;
+	int y = *yp;
+	int floorkick = 0;
+
+	if (bl == TETR_I2) {
+		if (plr->floorkick > 1)
+			return 0;
+		floorkick = 1 + (p->state==0);
+		y--;
+		if (can_rotate(bl, x, y, plr->board)) {
+			*yp = y;
+			plr->floorkick = floorkick;
+			return 1;
+		}
+		if (p->state==0)
+			return 0;
+		y--;
+		floorkick = 2;
+	} else {
+		if (p->state==3 || state==1)
+			x++;
+		if (p->state==1 || state==3)
+			x--;
+		*xp = x;
+		if (can_rotate(bl, x, y, plr->board))
+			return 1;
+		if (state==2)
+			y++;
+		else if (p->state==2 && !plr->floorkick) {
+			y--;
+			floorkick = 1;
+		} else
+			return 0;
 	}
+	if (can_rotate(bl, x, y, plr->board)) {
+		*yp = y;
+		if (floorkick)
+			plr->floorkick = floorkick;
+		return 1;
+	}
+	return 0;
+}
+
+static void redrawpiece(struct player *plr, int bl, int oldbl, int x, int y)
+{
+	int overlap = bl & oldbl;
+	drawpiece(plr, bl ^ overlap, x, y);
+	clearblocks(plr, oldbl ^ overlap, x, y);
+}
+
+static void do_rotate(struct player *plr, int bl, int x, int y, int state)
+{
+	struct tetr *p = &plr->piece;
+	int oldbl = p->blocks;
+	int oldx  = p->x;
+	int oldy  = p->y;
+
+	p->blocks = bl;
+	p->x      = x;
+	p->y      = y;
+	p->state  = state;
+
+	if (x < oldx)
+		oldbl <<= 1;
+	else if (x > oldx) {
+		bl <<= 1;
+		x = oldx;
+	}
+	if (y > oldy) {
+		if (oldbl & 15) {
+			bl <<= 4;
+			y = oldy;
+		} else
+			oldbl >>= 4;
+	} else if (y < oldy) {
+		if (bl & 15)
+			oldbl <<= 4;
+		else {
+			bl >>= 4;
+			y = oldy;
+		}
+	}
+	redrawpiece(plr, bl, oldbl, x, y);
 }
 
 void rotate(struct player *plr, int clockwise)
 {
 	struct tetr *p = &plr->piece;
-	uint_least32_t *board = plr->board;
-	int y = p->y;
-	int i = !(plr->rotationsys & ROT_LEFTHAND);
+	int bl    = p->blocks;
+	int x     = p->x;
+	int y     = p->y;
+	int state = p->state;
+	int i;
 
-	switch (p->blocks) {
-	case TETR_I:
-		if (!can_rotate(TETR_I2, p->x+i, y, board))
+	if (bl == TETR_O)
+		return;
+	for (i=0; bl != tetroms[state][i]; i++)
+		if (i >= 6)
 			return;
-		p->x += i;
-		p->blocks = TETR_I2;
-		drawpiece(plr, 0x1011, p->x+1, y);
-		clearblocks(plr, i?11:13, p->x-i, y+2);
-		break;
-	case TETR_I2:
-		if (!can_rotate(TETR_I, p->x-i, y, board))
-			return;
-		p->x -= i;
-		p->blocks = TETR_I;
-		drawpiece(plr, 15, p->x, y+2);
-		clearblocks(plr, 0x1011, p->x+i+1, y);
-		break;
-	case TETR_J3:
-		clockwise = !clockwise;
-	case TETR_J:
-		rotate_JL(plr, clockwise ? TETR_J2 : TETR_J4);
-		break;
-	case TETR_J4:
-		clockwise = !clockwise;
-	case TETR_J2:
-		rotate_JL(plr, clockwise ? TETR_J3 : TETR_J);
-		break;
-	case TETR_L3:
-		clockwise = !clockwise;
-	case TETR_L:
-		rotate_JL(plr, clockwise ? TETR_L2 : TETR_L4);
-		break;
-	case TETR_L4:
-		clockwise = !clockwise;
-	case TETR_L2:
-		rotate_JL(plr, clockwise ? TETR_L3 : TETR_L);
-		break;
-	case TETR_S:
-		if (!can_rotate(TETR_S2, p->x+i, y, board))
-			return;
-		p->blocks = TETR_S2;
-		if (!i) {
-			drawpiece(plr, 0x11, p->x, y);
-			clearblocks(plr, 0x14, p->x, y+1);
-		} else {
-			p->x++;
-			drawpiece(plr, 0x201, p->x, y);
-			clearblocks(plr, 3, p->x-1, y+2);
-		}
-		break;
-	case TETR_S2:
-		if (!can_rotate(TETR_S, p->x-i, y, board))
-			return;
-		p->blocks = TETR_S;
-		if (!i) {
-			drawpiece(plr, 0x14, p->x, y+1);
-			clearblocks(plr, 0x11, p->x, y);
-		} else {
-			p->x--;
-			drawpiece(plr, 3, p->x, y+2);
-			clearblocks(plr, 0x201, p->x+1, y);
-		}
-		break;
-	case TETR_T:         
-		i = clockwise ? TETR_T2 : TETR_T4;
-		if (!can_rotate(i, p->x, y, board))
-			return;
-		p->blocks = i;
-		drawpiece(plr, 1, p->x+1, y);
-		clearblocks(plr, 1, p->x+(clockwise?2:0), y+1);
-		break;
-	case TETR_T2:
-		i = clockwise ? TETR_T3 : TETR_T;
-		if (!can_rotate(i, p->x, y, board))
-			return;
-		p->blocks = i;
-		drawpiece(plr, 1, p->x+2, y+1);
-		clearblocks(plr, 1, p->x+1, y+(clockwise?2:0));
-		break;
-	case TETR_T3:
-		i = clockwise ? TETR_T4 : TETR_T2;
-		if (!can_rotate(i, p->x, y, board))
-			return;
-		p->blocks = i;
-		drawpiece(plr, 1, p->x+1, y+2);
-		clearblocks(plr, 1, p->x+(clockwise?0:2), y+1);
-		break;
-	case TETR_T4:
-		i = clockwise ? TETR_T : TETR_T3;
-		if (!can_rotate(i, p->x, y, board))
-			return;
-		p->blocks = i;
-		drawpiece(plr, 1, p->x, y+1);
-		clearblocks(plr, 1, p->x+1, y+(clockwise?0:2));
-		break;
-	case TETR_Z:
-		if (!can_rotate(TETR_Z2, p->x+i, y, board))
-			return;
-		p->blocks = TETR_Z2;
-		if (!i) {
-			drawpiece(plr, 0x102, p->x, y);
-			clearblocks(plr, 3, p->x+1, y+2);
-		} else {
-			p->x++;
-			drawpiece(plr, 0x11, p->x+1, y);
-			clearblocks(plr, 0x41, p->x-1, y+1);
-		}
-		break;
-	case TETR_Z2:
-		if (!can_rotate(TETR_Z, p->x-i, y, board))
-			return;
-		p->blocks = TETR_Z;
-		if (!i) {
-			drawpiece(plr, 3, p->x+1, y+2);
-			clearblocks(plr, 0x102, p->x, y);
-		} else {
-			p->x--;
-			drawpiece(plr, 0x41, p->x, y+1);
-			clearblocks(plr, 0x11, p->x+2, y);
+	if (clockwise)
+		state++;
+	else
+		state += -1+4;
+	state %= 4;
+	bl = tetroms[state][i];
+	if (!(plr->rotation & ROT_LEFTHAND)) {
+		switch (i) {
+		case 0:  /* I */
+		case 4:  /* S */
+		case 6:  /* Z */
+			if (!(plr->rotation & ROT_MODERN)) {
+				state %= 2;
+				if (state==1)
+					state = 3;
+			}
+			if (state==2)
+				y--;
+			else if (p->state==2)
+				y++;
+			if (state==3)
+				x++;
+			else if (p->state==3)
+				x--;
 		}
 	}
+	if (!can_rotate(bl, x, y, plr->board)) {
+		if (!(plr->rotation & ROT_MODERN))
+			return;
+		if (!test_wallkicks(plr, bl, &x, &y, state))
+			return;
+	}
+	do_rotate(plr, bl, x, y, state);
 	upd_dropmarker(plr, 0);
 }
 
-static int atspawnpos(struct tetr *p)
+static int atspawnpos(struct tetr *p, int rot)
 {
-	const short bl[7] = {TETR_I,TETR_J,TETR_L,TETR_O,TETR_S,TETR_T,TETR_Z};
+	const short *bl = tetroms[0];
 	struct tetr t;
 	int i;
 	if (p->x != 3 || p->y > 0)
 		return 0;
+	if (rot & ROT_MODERN)
+		bl = tetroms[2];
 	for (i = 0; i < 7; i++)
 		if (p->blocks == bl[i]) {
-			gettetrom(&t, i);
+			gettetrom(&t, i, rot);
 			return (p->y == t.y+2);
 		}
 	return 0;
@@ -656,7 +690,7 @@ static void movedown_n(struct player *plr, int drop, int n)
 int harddrop(struct player *plr, int safe)
 {
 	struct tetr *p = &plr->piece;
-	if (safe && atspawnpos(p))
+	if (safe && atspawnpos(p, plr->rotation))
 		return -1;
 	movedown_n(plr, 1, 19);
 	drawblocks(plr, p->blocks, p->x, p->y, DRAW_BLOCKS);
@@ -671,7 +705,7 @@ int softdrop(int n, int safe)
 	int tm = -1;
 	int y = p->piece.y;
 
-	if (safe && atspawnpos(&p->piece))
+	if (safe && atspawnpos(&p->piece, p->rotation))
 		return -1;
 	if (!movedown(p, 1))
 		return 0;
@@ -693,6 +727,33 @@ int softdrop(int n, int safe)
 	return 1;
 }
 
+void initialrotate(struct player *plr, int clockwise)
+{
+	if (clockwise)
+		plr->initrot++;
+	else
+		plr->initrot--;
+}
+
+int spawnpiece(struct player *plr)
+{
+	int cw = plr->initrot > 0;
+	while (plr->initrot) {
+		rotate(plr, cw);
+		if (cw)
+			plr->initrot--;
+		else
+			plr->initrot++;
+	}
+	plr->floorkick = 0;
+	if (movedown(plr, 0) && movedown(plr, 0)) {
+		show_dropmarker(plr);
+		upd_screen(0);
+		return 1;
+	}
+	return 0;
+}
+
 static int newclr(int old)
 {
 	int clr = randnum(7)+1;
@@ -705,7 +766,7 @@ static void gen_garbage_height(struct player *p, int h)
 {
 	int c, clr = randnum(7)+1;
 	int x, i;
-	if (p > game->player && p->height == player1.height) {
+	if (p > game.player && p->height == player1.height) {
 		memcpy(p->board, player1.board, 20*sizeof(uint_least32_t));
 		return;
 	}
@@ -745,43 +806,46 @@ void setupplayer(struct player *p)
 	memset(p->board, 0, 20*sizeof(int_least32_t));
 	if (p->height)
 		gen_garbage_height(p, p->height);
-	if  (!(game->mode & MODE_2PLAYER)) {
+	if  (!(game.mode & MODE_2P)) {
 		p->score = 0;
 		memset(tetr_stats, 0, 7);
 	}
 	p->level = -1;
 	while (p->level < p->startlevel)
 		levelup(p);
-	p->lines = (game->mode & MODE_BTYPE) ? p->lineslimit : 0;
+	p->initrot = 0;
+	p->lines = 0;
+	if (game.mode & MODE_LINECLEAR)
+		p->lines = p->lineslimit;
 }
 
 static int nextpiece(struct tetr *next)
 {
-	int i = randnum(7);
+	int i = rand_tetrom_next();
 	player1.piece = *next;
-	gettetrom(next, i);
+	gettetrom(next, i, player1.rotation);
 	tetr_stats[i]++;
 	drawnext(&player1, next);
-	return movedown(&player1, 0) && movedown(&player1, 0);
+	return spawnpiece(&player1);
 }
 
 int startgame_1p()
 {
 	struct tetr next;
-	int i = randnum(7);
+	int i = rand_tetrom_next();
 	int t;
 	drawgamescreen_1p();
-	gettetrom(&next, i);
+	gettetrom(&next, i, player1.rotation);
 	drawnext(&player1, &next);
-	game->next = &next;
+	player1.next = &next;
 	if (!startgame_wait(SINGLE_PL))
 		return 0;
 	tetr_stats[i] = 1;
 	upd_stat(&player1, 0);
+	tm_40L = gettm(0);
 	while (nextpiece(&next)) {
 		spawn_discard_drops(0);
 		t = gettm(0);
-		show_dropmarker(&player1);
 		while (1) {
 			t = player1.falltime-gettm(t)+t;
 			i = processinput(t, 0);
@@ -805,7 +869,7 @@ gravity:		t = gettm(0);
 		if (processinput(SPAWN_DELAY, DISCARD_MOVES) == -2)
 			return 0;
 	}
-	game->state = GAME_OVER;
+	game.state = GAME_OVER;
 	return 1;
 }
 
@@ -813,16 +877,18 @@ int startgame_wait(int n)
 {
 	int key;
 	print_press_key();
-	game->state = 0;
+	game.state = GAME_CREATED;
 	key = getkeypress_block(n);
 	n = processkey_ingame(key, DISCARD_MOVES | NO_PAUSE);
 	if (n == -2)
 		return 0;
 	upd_screen(1);
-	if (game->mode & MODE_2PLAYER)
+	if (game.mode & MODE_2P) {
 		upd_screen(2);
-	game->state = GAME_RUNNING;
-	game->next = NULL;
+		player2.next = NULL;
+	}
+	player1.next = NULL;
+	game.state = GAME_RUNNING;
 	return 1;
 }
 
@@ -830,18 +896,37 @@ int pausegame()
 {
 	int t = gettm(0);
 	int key;
-	game->state = GAME_PAUSED;
+	game.state = GAME_PAUSED;
 	clearboard_paused();
 	hide_dropmarker(&player1);
 	drawnext(&player1, NULL);
+	if (game.mode == MODE_1P_40L)
+		player1.score++;
 	do key = getkeypress_block(SINGLE_PL);
 	while (gettm(t)-t < 500);
 	if (processkey_ingame(key, NO_PAUSE | DISCARD_MOVES) == -2)
 		return -2;
+	tm_40L = gettm(0);
 	upd_screen(1);
 	show_dropmarker(&player1);
-	game->state = GAME_RUNNING;
+	game.state = GAME_RUNNING;
 	return 2;
+}
+
+static void update_40L_time()
+{
+	int d;
+	if (game.mode == MODE_1P_40L) {
+		d = gettm(tm_40L)-tm_40L;
+		while (d >= 10) {
+			player1.score++;
+			d -= 10;
+			tm_40L += 10;
+		}
+		if (tm_40L > 1000*TIMER_WRAPAROUND_SECS)
+			tm_40L -= 1000*TIMER_WRAPAROUND_SECS;
+		upd_stat(&player1, 0);
+	}
 }
 
 static int processinput(int tm, int flags)
@@ -850,10 +935,12 @@ static int processinput(int tm, int flags)
 	int t = gettm(0);
 	int d = 0;
 	int ret;
+	update_40L_time();
 	upd_screen(1);
 	while (d < tm) {
 		ret = -1;
 		if (key = getkeypress(tm-d, IN_GAME | SINGLE_PL)) {
+			update_40L_time();
 			ret = processkey_ingame(key, flags);
 			if (!ret) {
 				lockpiece(&player1);
@@ -864,9 +951,11 @@ static int processinput(int tm, int flags)
 			return ret;
 		d = gettm(t)-t;
 	}
+	update_40L_time();
 	if (!(flags & (DISCARD_MOVES | NO_PAUSE | RETURN_ON_INPUT))) {
 		tm -= d;
 		d = 0;
+		/* falltime must be > 0 */
 		while (tm <= -player1.falltime) {
 			tm += player1.falltime;
 			d++;

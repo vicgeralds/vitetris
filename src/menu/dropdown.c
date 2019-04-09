@@ -1,9 +1,9 @@
-#include <stdlib.h>	/* exit */
+#include <stdlib.h>
 #include <string.h>
 #include "menu.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 
 static int getdropdownwidth(const char **items, int n)
 {
@@ -89,7 +89,7 @@ out:	clearbox(x-1, y-1, w+2, n+2);
 	return i+1;
 }
 
-int selectitem(const char **items, int n, int *i, int k)
+int selectitem(const char **items, const char **abbr, int n, int *i, int k)
 {
 	int x, y;
 	switch (k) {
@@ -114,6 +114,8 @@ int selectitem(const char **items, int n, int *i, int k)
 	default:
 		return 0;
 	}
+	if (abbr)
+		items = abbr;
 	putch('[');
 	printstr(items[*i]);
 	n = getdropdownwidth(items, n) - strlen(items[*i]);

@@ -1,13 +1,17 @@
 extern char tetrom_colors[7];
+extern int  twoplayer_mode;
+
+void drawbox(int x, int y, int w, int h, const char *title);
+void clearbox(int x, int y, int w, int h);
 
 void draw_tetris_logo(int x, int y);
 void print_vitetris_ver(int x, int y);
+void draw_2p_menu_decor(int pl, int x, int y);
 
-#ifdef TWOPLAYER
-int board_x(int pl, int col);
-#else
-#define board_x(pl, col) (2*col+11)
-#endif
+/* prepare to draw game screen */
+void draw_entergame();
+
+int  board_x(int pl, int col);
 void next_xy(int pl, int *x, int *y);
 
 void drawgamescreen_1p();
@@ -48,10 +52,5 @@ void hide_dropmarker(const struct player *p);
 #define show_dropmarker(p) upd_dropmarker(p, 0)
 
 #endif /* tetris_h */
-
-void drawbox(int x, int y, int w, int h, const char *title);
-void clearbox(int x, int y, int w, int h);
-
-void draw_2p_menu_decor(int pl, int x, int y);
 
 void upd_screen(int win);

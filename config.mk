@@ -15,13 +15,10 @@ datadir = $(datarootdir)/allegro
 UNIX = y
 #EXE = .exe
 
-TWOPLAYER = y
 #JOYSTICK = y
 NETWORK = y
 TTY_SOCKET = y
 TERM_RESIZING = y
-MENU = y
-BLOCKSTYLES = y
 
 INPUT_SYS = unixterm
 #CURSES = y

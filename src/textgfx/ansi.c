@@ -1,25 +1,26 @@
+/* Text mode output using ANSI/VT100 escape sequences directly */
+
 #include <stdio.h>
 #include <string.h>
 #include "textgfx.h"
-#include "ansivt.h"
-#include "../input/termin.h"
-
-#ifdef NO_BLOCKSTYLES
-#undef TT_BLOCKS
-#undef BLACK_BRACKETS
-#define TT_BLOCKS 0
-#define BLACK_BRACKETS 0
-#endif
+#include "../game/tetris.h"
+#include "../draw.h"
+#include "../config.h"
 
 unsigned textgfx_flags = ASCII;
 
-char curs_x = 0;
-char curs_y = 0;
-char margin_x = 0;
 char menuheight = 1;
 
-int win_x = 0;
-int win_y = 0;
+static char curs_x;
+static char curs_y;
+static char margin_x;
+
+static int window;
+static int win_x;
+static int win_y;
+
+void set_input_mode();
+void restore_input_mode();
 
 void textgfx_init()
 {
@@ -42,6 +43,24 @@ void textgfx_end()
 #endif
 	"\033[m\n");
 	textgfx_flags = 0xFFF;
+}
+
+void txtg_entermenu()
+{
+	while (curs_y < 4)
+		newln(0);
+	menuheight = 4;
+	margin_x = getmargin_x();
+	draw_tetris_logo(0, 0);
+}
+
+void txtg_entergame()
+{
+	if (menuheight) {
+		menuheight = 0;
+		clearwin(0);
+		margin_x = getmargin_x();
+	}
 }
 
 static void set_curs(int x, int y)
@@ -69,6 +88,15 @@ void setcurs(int x, int y)
 	set_curs(x, y);
 }
 
+void setwcurs(int win, int x, int y)
+{
+	if (win != window) {
+		getwin_xy(win, &win_x, &win_y);
+		window = win;
+	}
+	setcurs(x, y);
+}
+
 void movefwd(int n)
 {
 	printf("\033[%dC", n);
@@ -81,10 +109,8 @@ void newln(int x)
 	x += win_x + margin_x;
 	if (x)
 		printf("\033[%dC", x);
-#ifndef NO_MENU
 	if (menuheight && curs_x > margin_x+1 && curs_y+1 >= menuheight)
 		menuheight = curs_y+1;
-#endif
 	curs_x = x;
 	curs_y++;
 }
@@ -92,11 +118,7 @@ void newln(int x)
 void setcurs_end()
 {
 	int y;
-#ifdef NO_MENU
-	if (0)
-#else
 	if (menuheight)
-#endif
 		y = menuheight;
 	else {
 		y = term_height-1;
@@ -119,21 +141,48 @@ void get_xy(int *x, int *y)
 	*y = curs_y - win_y;
 }
 
-void refreshscreen()
+void refreshwin(int win)
 {
+	static int redraw;
+	struct player *p;
+	if (redraw)
+		return;
+	if ((win == 1 || win == 2) && game.state != GAME_RUNNING) {
+		p = &game.player[win-1];
+		redraw = 1;
+		if (game.state == GAME_PAUSED)
+			redrawboard(p, 19);
+		else
+			redrawboard(p, 3);
+		redraw = 0;
+	}
 	fflush(stdout);
+}
+
+/* only used for clearing window showing next tetromino and game screen */
+void clearwin(int win)
+{
+	int h;
+	setwcurs(win, 0, 0);
+	if (win >= WIN_NEXT)
+		clearbox(0, 0, 8, 2);
+	else {
+		margin_x = 0;
+		h = term_height;
+		if (h < 24 && h > 21)
+			h = 21;
+		clearbox(0, 0, 0, h);
+	}
 }
 
 void cleartoeol()
 {
 	printf("\033[K");
-#ifndef NO_MENU
 	if (curs_x <= margin_x+2 && curs_y < menuheight && curs_y > 4)
 		menuheight = curs_y;
-#endif
 }
 
-void set_ansi_color(int bg, int fg, char bold)
+static void set_ansi_color(int bg, int fg, char bold)
 {
 	if (textgfx_flags & BLACK_BRACKETS) {
 		if (bg == fg) {
@@ -153,7 +202,7 @@ void set_ansi_color(int bg, int fg, char bold)
 	printf("\033[%c;3%cm", bold, fg+'0');
 }
 
-void set_color_pair(int clr)
+static void set_color_pair(int clr)
 {
 	int bg = -1;
 	char bold = '1';
@@ -206,6 +255,24 @@ void set_color_pair(int clr)
 	set_ansi_color(bg, clr, bold);
 }
 
+void setcolorpair(int clr)
+{
+	int bg;
+	if (clr != PANEL_LABEL_COLOR)
+		set_color_pair(clr);
+	else if (!_MONOCHROME) {
+		clr = 3;
+		if (twoplayer_mode)
+			bg = 4;
+		else {
+			bg = (player1.level % 6)+1;
+			if (bg==6)
+				clr = 7;
+		}
+		set_ansi_color(bg, clr, '1');
+	}
+}
+
 void setattr_normal()
 {
 	printf("\033[m");
@@ -218,9 +285,7 @@ void setattr_standout()
 
 void setattr_bold()
 {
-#ifndef NO_BLOCKSTYLES
 	if ((textgfx_flags & TT_MONO) != TT_MONO)
-#endif
 		printf("\033[1m");
 }
 
@@ -291,9 +356,4 @@ void printlong(const char *fmt, long d)
 	putch(' ');
 	putch('\b');
 	curs_x += printf(fmt, d);
-}
-
-int default_bgdot()
-{
-	return BULLET;
 }

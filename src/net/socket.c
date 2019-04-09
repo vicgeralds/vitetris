@@ -208,10 +208,8 @@ void rmsocket()
 			unlink(SUN_PATH(sock_addr));
 #endif
 		if (sock_flags & (CONN_PROXY | CONNECTED) !=
-				 (CONN_PROXY | CONNECTED)) {
-			free(sock_addr);
+				 (CONN_PROXY | CONNECTED))
 			sock_addr = NULL;
-		}
 	}
 	closesock();
 	socket_fd = -1;

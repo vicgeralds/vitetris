@@ -1,11 +1,17 @@
 #include <string.h>
 #include <curses.h>
 #include "textgfx.h"
-#include "curs.h"
-#include "../input/termin.h"
+#include "../game/tetris.h"
+#include "../draw.h"
 
-#ifndef NCURSES_VERSION
-const short colors1_6[6] = {
+#ifdef NCURSES_VERSION
+#define COLOR_1_6(i) (i+1)
+#define COLOR_DEFAULT_BG -1
+#else
+#define COLOR_1_6(i) colors1_6[i]
+#define COLOR_DEFAULT_BG COLOR_BLACK
+
+static const short colors1_6[6] = {
 	COLOR_RED,  COLOR_GREEN,   COLOR_YELLOW,
 	COLOR_BLUE, COLOR_MAGENTA, COLOR_CYAN
 };
@@ -13,12 +19,46 @@ const short colors1_6[6] = {
 
 unsigned textgfx_flags = 0;
 
-int margin_x = 0;
-
-WINDOW *window;
+WINDOW *window = NULL;
 WINDOW *wins[6] = {NULL};
 
+static int margin_x;
+
 static chtype acs_chars[17];
+
+static void delwins();
+static void createwin(int i, int w, int h);
+
+static void initpair(short pair, short f, short b)
+{
+	if (_TT_BLOCKS || f==b && textgfx_flags & BLACK_BRACKETS)
+		b = COLOR_DEFAULT_BG;
+	init_pair(pair, f, b);
+}
+
+void init_color_pairs()
+{
+	int i;
+	for (i = 0; i < 6; i++)
+		initpair(i+1, COLOR_1_6(i), COLOR_1_6(i));
+	if (_WHITE_BG)
+		initpair(7, COLOR_BLACK, COLOR_BLACK);
+	else
+		initpair(7, COLOR_WHITE, COLOR_WHITE);
+	init_pair(MAGENTA_FG, COLOR_MAGENTA, COLOR_DEFAULT_BG);
+	initpair(WHITE_ON_BLUE, COLOR_WHITE, COLOR_BLUE);
+	i = _WHITE_BG ? COLOR_CYAN : COLOR_BLUE;
+	init_pair(BOARD_BG_COLOR, i, COLOR_DEFAULT_BG);
+	init_pair(BOARD_FRAME_COLOR, COLOR_BLUE, COLOR_DEFAULT_BG);
+	init_pair(RED_FG, COLOR_RED, COLOR_DEFAULT_BG);
+	if (!(textgfx_flags & (TT_BLOCKS | BLACK_BRACKETS))) {
+		init_pair(15, COLOR_GREEN, COLOR_DEFAULT_BG);
+		init_pair(16, COLOR_YELLOW, COLOR_DEFAULT_BG);
+		init_pair(17, COLOR_CYAN, COLOR_DEFAULT_BG);
+	}
+}
+
+void set_input_mode();
 
 void textgfx_init()
 {
@@ -48,35 +88,9 @@ void textgfx_init()
 	acs_chars[14] = ACS_BTEE;	/* v */
 	acs_chars[15] = ACS_TTEE;	/* w */
 	acs_chars[16] = ACS_VLINE;	/* x */
-}
 
-void init_color_pairs()
-{
-	int i;
-	for (i = 0; i < 6; i++)
-		initpair(i+1, COLOR_1_6(i), COLOR_1_6(i));
-	if (_WHITE_BG)
-		initpair(7, COLOR_BLACK, COLOR_BLACK);
-	else
-		initpair(7, COLOR_WHITE, COLOR_WHITE);
-	init_pair(MAGENTA_FG, COLOR_MAGENTA, COLOR_DEFAULT_BG);
-	initpair(WHITE_ON_BLUE, COLOR_WHITE, COLOR_BLUE);
-	i = _WHITE_BG ? COLOR_CYAN : COLOR_BLUE;
-	init_pair(BOARD_BG_COLOR, i, COLOR_DEFAULT_BG);
-	init_pair(BOARD_FRAME_COLOR, COLOR_BLUE, COLOR_DEFAULT_BG);
-	init_pair(RED_FG, COLOR_RED, COLOR_DEFAULT_BG);
-	if (!(textgfx_flags & (TT_BLOCKS | BLACK_BRACKETS))) {
-		init_pair(15, COLOR_GREEN, COLOR_DEFAULT_BG);
-		init_pair(16, COLOR_YELLOW, COLOR_DEFAULT_BG);
-		init_pair(17, COLOR_CYAN, COLOR_DEFAULT_BG);
-	}
-}
-
-void initpair(short pair, short f, short b)
-{
-	if (_TT_BLOCKS || f==b && textgfx_flags & BLACK_BRACKETS)
-		b = COLOR_DEFAULT_BG;
-	init_pair(pair, f, b);
+	if (!_XTERM)
+		default_bgdot = '.';
 }
 
 void textgfx_end()
@@ -92,7 +106,57 @@ void textgfx_end()
 	}
 }
 
-void delwins()
+void txtg_entermenu()
+{
+	int x = getmargin_x();
+	delwins();
+	refresh();
+	window = newwin(term_height-1, term_width-x, 1, x);
+	wins[0] = window;
+	draw_tetris_logo(0, 0);
+	print_vitetris_ver(19, 4);
+}
+
+static void print_ver_author()
+{
+	int y;
+	if (_HEIGHT_24L && margin_x > 14) {
+		window = stdscr;
+		attrset(A_NORMAL);
+		print_vitetris_ver(-margin_x, 0);
+		y = term_height-3;
+		mvaddstr(y,  0, "Written by");
+		mvaddstr(y+1,0, "Victor Nilsson");
+		mvaddstr(y+2,0, "2007-2009");
+	}
+}
+
+void txtg_entergame()
+{
+	delwins();
+	margin_x = getmargin_x();
+	createwin(1, 20, 20);
+	if (!twoplayer_mode) {
+		createwin(WIN_NEXT, 8, 2);
+		createwin(WIN_PANEL, 10, 20);
+		if (term_width >= 45) {
+			createwin(WIN_TETROM_STATS, 9, 9);
+			if (term_width >= 47)
+				createwin(WIN_TOP_SCORES, 11, 7);
+		}
+	} else {
+		createwin(2, 20, 20);
+		if (_HEIGHT_24L || term_width >= 76) {
+			createwin(WIN_NEXT, 8, 2);
+			createwin(WIN_NEXT+1, 8, 2);
+		}
+		createwin(WIN_PANEL, 12, 20);
+	}
+	clear();
+	print_ver_author();
+}
+
+static void delwins()
 {
 	int i;
 	for (i = 0; i < 6; i++)
@@ -100,6 +164,25 @@ void delwins()
 			delwin(wins[i]);
 			wins[i] = NULL;
 		}
+}
+
+static int winindex(int win)
+{
+	switch (win) {
+	case WIN_TETROM_STATS:
+		return 2;
+	case WIN_TOP_SCORES:
+		return 4;
+	}
+	return win;
+}
+
+static void createwin(int i, int w, int h)
+{
+	int x, y;
+	getwin_xy(i, &x, &y);
+	i = winindex(i);
+	wins[i] = newwin(h, w, y, x+margin_x);
 }
 
 void setcurs(int x, int y)
@@ -112,6 +195,33 @@ void setcurs(int x, int y)
 	} else
 		margin_x = 0;
 	wmove(window, y, x);
+}
+
+static void clearboard_paused_fix()
+{
+#ifdef PDCURSES
+	int x = board_x(1, 0);
+	int i;
+	setcurs(x, _HEIGHT_24L ? 4 : 0);
+	for (i=0; i < 20; i++) {
+		putnchars('/', 20);
+		if (i < 19)
+			newln(x);
+	}
+	refresh();
+#endif
+}
+
+void setwcurs(int win, int x, int y)
+{
+	window = wins[winindex(win)];
+	if (!window) {
+		window = stdscr;
+		margin_x = getmargin_x();
+		if (game.state == GAME_PAUSED && y <= 4)
+			clearboard_paused_fix();
+	}
+	setcurs(x, y);
 }
 
 void movefwd(int n)
@@ -153,6 +263,33 @@ void get_xy(int *x, int *y)
 	getyx(window, *y, *x);
 }
 
+void refreshwin(int i)
+{
+	WINDOW *win;
+	if (i == -1)
+		win = window;
+	else
+		win = wins[winindex(i)];
+	if ((i==1 || i==2) && game.state != GAME_RUNNING) {
+#ifdef PDCURSES
+		print_game_message(i, "                ", 0);
+#endif
+		touchwin(win);
+	}
+	if (win)
+		wrefresh(win);
+	else {
+		attrset(A_NORMAL);
+		refresh();
+	}
+}
+
+void clearwin(int win)
+{
+	setwcurs(win, 0, 0);
+	werase(window);
+}
+
 void cleartoeol()
 {
 	wclrtoeol(window);
@@ -170,7 +307,24 @@ static void setfgcolor(int clr)
 	wattrset(window, attrs);
 }
 
-void set_color_pair(int pair)
+static int set_panel_label_color()
+{
+	short f = COLOR_YELLOW;
+	short b;
+	if (twoplayer_mode)
+		b = COLOR_BLUE;
+	else {
+		b = COLOR_1_6(player1.level % 6);
+		if (b == COLOR_CYAN)
+			f = COLOR_WHITE;
+		if (b == COLOR_YELLOW)
+			return 3;
+	}
+	initpair(PANEL_LABEL_COLOR, f, b);
+	return PANEL_LABEL_COLOR;
+}
+
+static void set_color_pair(int pair)
 {
 	int attrs;
 	if (_MONOCHROME) {
@@ -206,6 +360,13 @@ void set_color_pair(int pair)
 			attrs |= A_BOLD;
 	}
 	wattrset(window, attrs);
+}
+
+void setcolorpair(int pair)
+{
+	if (pair == PANEL_LABEL_COLOR)
+		pair = set_panel_label_color();
+	set_color_pair(pair);
 }
 
 void setattr_normal()
@@ -299,9 +460,4 @@ void printint(const char *fmt, int d)
 void printlong(const char *fmt, long d)
 {
 	wprintw(window, fmt, d);
-}
-
-int default_bgdot()
-{
-	return _XTERM ? BULLET : '.';
 }

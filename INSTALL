@@ -28,7 +28,7 @@ Linux, *BSD, Mac OS X, etc.
 
   There is a game server included which can be built with "make gameserver".
   If SAME_LEVEL_HEIGHT is defined, players will be forced to have the same
-  start level and height (uncomment in src/netw/gameserver.c).
+  start level and height (uncomment in src/net/gameserver.c).
   See the README under "Network Play" for more information.
 
   Network functions such as socket() and gethostbyname() are sometimes not

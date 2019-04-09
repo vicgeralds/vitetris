@@ -1,13 +1,13 @@
+/* Options menu */
+
 #include <string.h>
 #include "menu.h"
-#include "menuext.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #include "../options.h"
 #include "../lang.h"
 
-#ifdef TWOPLAYER
 static int op_inputsetup_select(int x, int y)
 {
 	const char *items[3] = {
@@ -17,9 +17,6 @@ static int op_inputsetup_select(int x, int y)
 	};
 	return dropdownlist(items, 3, 0, x+14, y);
 }
-#else
-#define op_inputsetup_select(x, y) 1
-#endif
 
 static void save_bgdot()
 {
@@ -53,7 +50,7 @@ static int op_bgdot(int k, int *pos)
 	if (bgdot == ' ')
 		i = n-1;
 	j = i;
-	k = selectitem(items, n, &i, k);
+	k = selectitem(items, NULL, n, &i, k);
 	if (i != j) {
 		if (i == 0)
 			bgdot = '.';
@@ -140,11 +137,9 @@ void options_menu(const char **items, int n, menuhandler f, int x, int y)
 	memcpy(&menu[2], items, n*sizeof(char *));
 	while (i <= n)
 		handlers[++i] = f;
-#if !NO_BLOCKSTYLES
 	menu[++i] = "Block Style";
 	handlers[i] = f;
 	n++;
-#endif
 	menu[++i] = "Board BG";
 	handlers[i] = op_bgdot;
 	spellword(tetr_colors+10);
@@ -181,12 +176,10 @@ int term_optionhandler(int k, const struct termopt *o)
 		return 1;
 	v.integ = flag==MONOCHROME ? 2-k : k-1;
 	setoption("term", o->key, v, 0);
-#if !NO_BLOCKSTYLES
 	if ((textgfx_flags & (WHITE_BG | TT_MONO))==(WHITE_BG | TT_BLOCKS) ||
 	    _TT_BLOCKS_BG && (!_WHITE_BG || _MONOCHROME) &&
 	    getopt_int("term", "block") == -1)
 		textgfx_flags ^= TT_BLOCKS | TT_BLOCKS_BG;
-#endif
 	reset_block_chars();
 	return 3;
 }

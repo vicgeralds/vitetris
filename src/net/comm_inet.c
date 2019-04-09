@@ -81,7 +81,7 @@ static int recvplayerlist()
 static void send_mode()
 {
 	char s[3] = "m";
-	s[1] = game->mode;
+	s[1] = game.mode;
 	s[2] = player1.lineslimit;
 	writebytes(s, 3);
 }
@@ -110,7 +110,7 @@ int handle_server_message()
 				sock_sendplayer();
 			}
 		}
-		return !game_over;
+		return game.state != GAME_OVER;
 	}
 	return 0;
 }

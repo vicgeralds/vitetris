@@ -1,5 +1,5 @@
 #ifdef SOCKET
-#define NETPLAY (game->mode & MODE_NETWORK)
+#define NETPLAY (game.mode & MODE_NET)
 #else
 #define NETPLAY 0
 #endif
@@ -7,11 +7,10 @@
 extern struct tetris2p {
 	int falltm;
 	int delay;
-	char clearedlines[4];
-	char nul;
+	short lockdelay;	/* boolean */
+	short x;
+	char clearedlines[5];	/* clearedlines[4] = null byte */
 	signed char garbage[3];
-	signed char x1, x2;
-	short b1, b2;
 } tetris2p[2];
 
 extern struct player *winner;

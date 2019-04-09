@@ -21,13 +21,13 @@ allegro: $(OBJS) inp_allegro.o $(select_obj)
 	ar rcs input.a $(OBJS) inp_allegro.o $(select_obj)
 
 input.o: input.c input.h keyboard.h joystick.h \
-	 ../timer.h ../draw/draw.h ../game/tetris.h ../netw/sock.h \
+	 ../timer.h ../draw.h ../game/tetris.h ../net/sock.h \
 	 ../textgfx/textgfx.h ../focus.h ../src-conf.mk
-	$(CC) $(CCFLAGS) -I.. $(DTWOPLAYER) $(DJOYSTICK) $(DSOCKET) $(DTTY_SOCKET) $(DNO_MENU) $(DTERM_RESIZING) $(DXLIB) $(DALLEGRO) -c input.c
+	$(CC) $(CCFLAGS) -I.. $(DJOYSTICK) $(DSOCKET) $(DTTY_SOCKET) $(DTERM_RESIZING) $(DXLIB) $(DALLEGRO) -c input.c
 
 keyboard.o: keyboard.c keyboard.h input.h escseq.h \
 		../config.h ../config2.h ../src-conf.mk
-	$(CC) $(CCFLAGS) -I.. $(DTWOPLAYER) $(DCURSES) $(DALLEGRO) -c keyboard.c
+	$(CC) $(CCFLAGS) -I.. -DTWOPLAYER $(DCURSES) $(DALLEGRO) -c keyboard.c
 
 joystick.o: joystick.c joystick.h input.h ../timer.h
 joylinux.o: joylinux.c joystick.h input.h ../timer.h ../options.h
@@ -36,8 +36,8 @@ inp_unixterm.o: inp_unixterm.c termin.h keyboard.h escseq.h input.h select.h \
 		joystick.h ../src-conf.mk
 	$(CC) $(CCFLAGS) $(DJOYSTICK) $(DSOCKET) -c inp_unixterm.c
 
-escseq.o: escseq.c escseq.h input.h termin.h ../src-conf.mk
-	$(CC) $(CCFLAGS) $(DTWOPLAYER) -c escseq.c
+escseq.o: escseq.c escseq.h input.h termin.h
+	$(CC) $(CCFLAGS) -DTWOPLAYER -c escseq.c
 
 select.o: select.c select.h input.h ../textgfx/textgfx.h \
 		../config.h ../config2.h
@@ -49,8 +49,7 @@ inp_curses.o: inp_curses.c termin.h  keyboard.h  input.h
 inp_con.o   : inp_con.c    termin.h  keyboard.h  input.h
 
 inp_allegro.o: inp_allegro.c keyboard.h joystick.h input.h \
-		../timer.h ../game/tetris.h ../textgfx/textgfx.h \
-		../textgfx/alleg.h ../config.h
+		../timer.h ../game/tetris.h  ../config.h
 	$(CC) $(CCFLAGS) -I.. -c inp_allegro.c
 
 playerin.o: playerin.c input.h ../options.h

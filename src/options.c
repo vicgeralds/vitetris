@@ -3,7 +3,8 @@
 #include <ctype.h>
 #include "options.h"
 
-struct sect sect_hd = {""};
+int options_empty = 1;
+static struct sect sect_hd;
 
 int strtoval(char *str, union val *val)
 {
@@ -57,12 +58,20 @@ struct sect *addsect(const char *name)
 	struct sect *s = getsect(name, NULL);
 	if (!s) {
 		s = malloc(sizeof(struct sect));
-		strcpy(s->name, name);
-		s->opts = NULL;
-		s->next = sect_hd.next;
-		sect_hd.next = s;
+		if (s) {
+			options_empty = 0;
+			strcpy(s->name, name);
+			s->opts = NULL;
+			s->next = sect_hd.next;
+			sect_hd.next = s;
+		}
 	}
 	return s;
+}
+
+struct sect *get_first_sect()
+{
+	return sect_hd.next;
 }
 
 static struct option *newopt(const char *key, union val val, int tp)
@@ -76,6 +85,8 @@ static struct option *newopt(const char *key, union val val, int tp)
 	if (tp == 2)
 		m = strlen(val.p)+1;
 	o = malloc(n+m);
+	if (!o)
+		return NULL;
 	o->val = val;
 	if (m) {
 		p = (char *) o;
@@ -99,8 +110,11 @@ void addopt(const char *key, union val val, int tp, struct sect *sect)
 	struct option *o = newopt(key, val, tp);
 	if (!sect)
 		sect = &sect_hd;
-	o->next = sect->opts;
-	sect->opts = o;
+	if (o) {
+		options_empty = 0;
+		o->next = sect->opts;
+		sect->opts = o;
+	}
 }
 
 struct option *getoptions(const char *sect_name)
@@ -205,6 +219,7 @@ void freeoptions(const char *sect_name)
 			return;
 		p->next = s->next;
 	} else {
+		options_empty = 1;
 		while (sect_hd.next)
 			freeoptions(sect_hd.next->name);
 		s = &sect_hd;

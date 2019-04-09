@@ -17,12 +17,11 @@
 #include "options.h"
 #include "hiscore.h"
 #include "game/game.h"
-#include "game/tetris.h"	/* MODE_BTYPE */
+#include "game/tetris.h"	/* game modes */
 #include "textgfx/textgfx.h"
 #include "input/input.h"
-#include "menu/menu.h"		/* inputsetup_menu */
 #include "input/joystick.h"	/* js_open */
-#include "netw/sock.h"
+#include "net/sock.h"
 
 struct cmdopt {
 	const char *pattern;
@@ -106,10 +105,32 @@ static void requires_arg(const char *name, char *arg, const char *try)
 		x_arg_error("Missing", name, try);
 }
 
+static void forbids_arg(const char *name, char *arg)
+{
+	if (arg) {
+		printf("Option \"%s\" doesn't allow an argument.", name);
+		print_stdout_exit(1);
+	}
+}
+
+static void set_lines_25(int mode)
+{
+	union val v;
+	v.integ = 25;
+	if (mode & MODE_2P) {
+		setoption("player1", "lines", v, 0);
+		setoption("player2", "lines", v, 0);
+		if (!(mode & MODE_NET))
+			return;
+	}
+	setoption("", "lines", v, 0);
+}
+
 static void set_mode_btype()
 {
 	union val v;
-	v.integ = getopt_int("", "mode") | MODE_BTYPE;
+	v.integ = getopt_int("", "mode") | MODE_B;
+	v.integ &= ~MODE_40L;
 	setoption("", "mode", v, 0);
 }
 
@@ -121,7 +142,6 @@ static int cmd_game_opt(const char *name, char *arg)
 	const char *sect = "";
 	union val v;
 	val = argtonum(arg);
-#ifdef TWOPLAYER
 	if (*key =='p') {
 		pl = key[1]-'0';
 		switch (pl) {
@@ -132,7 +152,6 @@ static int cmd_game_opt(const char *name, char *arg)
 		}
 		key += 2;
 	}
-#endif
 	switch (testgameopt(key, val, pl)) {
 	case -1:
 		if (!strcmp(name, "height"))
@@ -142,14 +161,31 @@ static int cmd_game_opt(const char *name, char *arg)
 	case 0:
 		return 0;
 	case 1:
-		if (arg[1] =='b')
-			val |= MODE_BTYPE;
+		if (arg[1] =='b') {
+			val |= MODE_B;
+			set_lines_25(val);
+		}
 		break;
 	case 4:
 		set_mode_btype();
 	}
 	v.integ = val;
 	setoption(sect, key, v, 0);
+	return 1;
+}
+
+static int cmd_mode_short(const char *name, char *arg)
+{
+	union val v;
+	forbids_arg(name, arg);
+	v.integ = getopt_int("", "mode");
+	v.integ &= ~(MODE_B | MODE_40L);
+	if (name[0] == 'b') {
+		v.integ |= MODE_B;
+		set_lines_25(v.integ);
+	} else if (name[0] != 'a')
+		v.integ |= MODE_40L;
+	setoption("", "mode", v, 0);
 	return 1;
 }
 
@@ -226,16 +262,9 @@ static void printhelp()
 	  "fullscreen	Fullscreen mode\n"
 	  "fullscreen 0	Windowed mode\n"
 #endif
-#ifndef NO_MENU
 	  "nomenu	Skip menus\n"
-#endif
 	  "hiscores	Print highscore list and exit\n"
 	  "hiscores FILE	Read and add highscore entries from FILE\n"
-#if NO_MENU && JOYSTICK
-	  "inputsetup [N]	Set keys/buttons for player N\n"
-#elif NO_MENU
-	  "inputsetup [N]	Set keys for player N\n"
-#endif
 #if JOYSTICK && !ALLEGRO
 	  "js0 DEVNAME	Joystick device name (e.g. /dev/js0)\n"
 	  "js1 DEVNAME	Second joystick device name\n"
@@ -264,7 +293,7 @@ static void printhelp()
 	printf("\n"
 	  "Options may also be given as option=ARG, --option=ARG etc.\n\n"
 	  "Highscores are saved in %s"
-#ifdef UNIX
+#if UNIX && defined(HISCORE_FILENAME)
 	  ",\nand in "HISCORE_FILENAME" if it exists and is writable"
 #endif
 	  ".\n", cfgfilename);
@@ -273,18 +302,20 @@ static void printhelp()
 static void printhelp_game()
 {
 	puts("Game options:");
-	printopts(15, "Single-player game",
-	  "mode 1	%s\n"
-	  "mode 1b	%s in B-type mode\n"
+	printopts(15, NULL,
+	  "mode 1-2	Single- or two-player A-type game\n"
+	  "mode N	Game mode N (a number)\n"
+	  "MODE	Game mode MODE, where MODE is a, b or 40L\n"
 	  "level 0-9	Starting level\n"
-	  "height 0-5	Height of garbage blocks at beginning\n"
-	  "lines N	Lines limit (B-type mode)\n"
-	  "rotate 0-3	Rotation system\n"
-	  "softdrop N	Softdrop speed (drop N rows)\n"
-#ifdef TWOPLAYER
-	  "mode 2[b]	Two-player game [B-type mode]\n"
-	  "	Player options are prefixed with p1 or p2 (e.g. -p1level 9)"
-#endif
+	  "height 0-5	Height of garbage blocks\n"
+	  "lines N	Lines to clear (B-type)\n"
+	  "rotate 0-5	Rotation system\n"
+	  "softdrop N	Softdrop speed (drop N rows)"
+	);
+	puts("\n"
+	     "Example: tetris -mode 1 -40L -level 9 -softdrop 20\n"
+	     "         (all the dashes may be omitted)\n\n"
+	     "Player options are prefixed with p1 or p2 (e.g. -p1level 9)."
 	);
 }
 
@@ -305,11 +336,9 @@ static void printhelp_term()
 	printopts(14, alt,
 	  "ascii	Use ASCII characters for line drawing\n"
 	  "vt100	Use %s character set for line drawing\n"
-#ifndef NO_BLOCKSTYLES
 	  "block STR	Draw blocks using characters in STR\n"
 	  "tt	Draw blocks as in Mike Taylor's Tetris for Terminals\n"
 	  "tt-bg	tt block characters with background"
-#endif
 	);
 }
 
@@ -343,19 +372,18 @@ static int cmd_fullscreen(const char *name, char *arg)
 
 static int cmd_nomenu(const char *name, char *arg)
 {
-#ifndef NO_MENU
 	in_menu = !argtonum(arg);
-#endif
 	return 1;
 }
 
 static void print_hiscorelist()
 {
 	char buf[320];
-	if (!readhiscores(NULL))
+	readhiscores(NULL);
+	if (!num_hiscores)
 		puts("No saved scores");
 	else {
-		printf("    Name      Score  Lvl  Lines\n");
+		puts(hiscore_columns);
 		gethiscorelist(buf);
 		printf(buf);
 	}
@@ -370,33 +398,6 @@ static int cmd_hiscore(const char *name, char *fname)
 	readhiscores(fname);
 	return 1;
 }
-
-#ifdef NO_MENU
-static int cmd_inputsetup(const char *name, char *arg)
-{
-	const char *plstr = "single player";
-	int pl = argtonum(arg);
-	if (pl < 0 || pl > 2)
-		pl = 0;
-	gettermoptions();
-	textgfx_init();
-	atexit(textgfx_end);
-	init_inputdevs();
-#ifdef TWOPLAYER
-	switch (pl) {
-	case 1:  plstr = "player1";  break;
-	case 2:  plstr = "player2";
-	}
-#endif
-	printstr(plstr);
-	newln(0);
-	newln(0);
-	inputsetup_menu(pl, 2, 2);
-	textgfx_end();
-	writeconfig_message();
-	exit(0);
-}
-#endif /* NO_MENU */
 
 #if JOYSTICK && !ALLEGRO
 static int cmd_jsopen(const char *name, char *arg)
@@ -609,7 +610,6 @@ static int cmd_ascii(const char *name, char *arg)
 	return 1;
 }
 
-#ifndef NO_BLOCKSTYLES
 static void unsetbgdot()
 {
 	if (!getopt_int("term", "bgdot"))
@@ -646,7 +646,6 @@ static int cmd_tt(const char *name, char *arg)
 	setoption("term", "block", v, 0);
 	return 1;
 }
-#endif
 
 static void proc_cmdline_opt(const char *name, char *arg)
 {
@@ -658,9 +657,6 @@ static void proc_cmdline_opt(const char *name, char *arg)
 #endif
 		{"nomenu", cmd_nomenu},
 		{"hiscores|hiscore", cmd_hiscore},
-#ifdef NO_MENU
-		{"inputsetup", cmd_inputsetup},
-#endif
 #if JOYSTICK && !ALLEGRO
 		{"js0|js1", cmd_jsopen},
 #endif
@@ -672,10 +668,9 @@ static void proc_cmdline_opt(const char *name, char *arg)
 		{"bg", cmd_bg},
 		{"color|mono", cmd_color},
 		{"ascii|vt100", cmd_ascii},
-#ifndef NO_BLOCKSTYLES
 		{"block|bgdot", cmd_block_bgdot},
 		{"tt|tt-bg", cmd_tt},
-#endif
+		{"[ab]|40L|40l", cmd_mode_short},
 		{NULL}
 	};
 	const struct cmdopt *o = opts;
@@ -710,8 +705,11 @@ void proc_args(char **args, int n)
 		} else if (i+1 < n) {
 			c = args[i+1][0];
 			if (c != '-' && (p > args[i] || !islower(c) ||
-			    namematches(p, "[?h]|help|connect")))
+			    namematches(p, "[?h]|help|connect"))) {
 				q = args[i+1];
+				if (namematches(q, "40L|40l"))
+					q = NULL;
+			}
 #ifdef SOCKET
 			if (q && i+2 < n && !strcmp(p, "connect") &&
 			    connect_to(q, args[i+2])) {

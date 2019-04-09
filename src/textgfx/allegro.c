@@ -1,3 +1,5 @@
+/* Text-looking graphics with Allegro */
+
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -10,11 +12,12 @@
 			   _xwin.application_class */
 #endif
 #include "textgfx.h"
-#include "alleg.h"
 #include "../options.h"
 #include "../lang.h"
 #include "../version.h"
 #include "../input/keyboard.h"
+#include "../game/tetris.h"
+#include "../draw.h"
 
 #if defined ALLEGRO_WITH_XWINDOWS && defined ALLEGRO_USE_CONSTRUCTOR
 #include "allegro_icon.h"
@@ -26,24 +29,24 @@ static void _set_allegro_icon()
 }
 #endif
 
-void blockstyle_from_option(const struct option *o);
-int ibmgfx(int ch);
+void refreshscreen();
 
 unsigned textgfx_flags = HEIGHT_24L;
 
 char term_width = 80;
 char term_height = 25;
 
-static char curs_x = 0;
-static char curs_y = 0;
-char margin_x = 0;
+static char curs_x;
+static char curs_y;
+static char margin_x = 0;
 
-int win_x = 0;
-int win_y = 0;
+static int window;
+static int win_x;
+static int win_y;
 
-BITMAP *virt_screen = NULL;
-int refresh_needed = 0;
-char blit_rect[4] = {0};
+static BITMAP *virt_screen;
+static int refresh_needed;
+static char blit_rect[4];
 
 int close_button_pressed = 0;
 
@@ -59,6 +62,8 @@ static struct sigaction allegro_sigint_handler;
 void gettermsize() {}
 void settermwidth(int w) {}
 void settermheight(int h) {}
+
+void blockstyle_from_option(const struct option *o);
 
 void gettermoptions()
 {
@@ -131,7 +136,6 @@ static void got_focus_back()
 	textgfx_flags &= ~LOST_FOCUS;
 	kb_flushinp();
 	refresh_needed = 1;
-	refreshscreen();
 }
 
 static int setgfxmode(int fullscreen)
@@ -286,6 +290,52 @@ void textgfx_end()
 	allegro_exit();
 }
 
+static void print_copyright()
+{
+	BITMAP *bmp;
+	int x, y = SCREEN_H-16;
+	int fg = makecol(170, 170, 170);
+	int i;
+	if (is_windowed_mode())
+		bmp = virt_screen;
+	else
+		bmp = screen;
+	textout_ex(bmp, font, "Copyright   2007-2009 Victor Nilsson",
+		   8, y, fg, 0);
+	/* draw copyright symbol */
+	x = 88;
+	vline(bmp, x, y+2, y+5, fg);
+	vline(bmp, x+7, y+2, y+5, fg);
+	vline(bmp, x+2, y+3, y+4, fg);
+	for (i=1; i > -2; i -= 2) {
+		hline(bmp, x+2, y, x+5, fg);
+		y += i;
+		putpixel(bmp, x+1, y, fg);
+		putpixel(bmp, x+6, y, fg);
+		hline(bmp, x+3, y+i, x+4, fg);
+		y += 6;
+	}
+}
+
+void txtg_entermenu()
+{
+	clear_bitmap(virt_screen);
+	margin_x = getmargin_x();
+	win_y = 1;
+	print_copyright();
+	draw_tetris_logo(0, 0);
+	print_vitetris_ver(19, 4);
+}
+
+void txtg_entergame()
+{
+	clearwin(0);
+	margin_x = getmargin_x();
+	if (!window)
+		win_y = 0;
+	rectfill(screen, 8, SCREEN_H-16, 300, SCREEN_H-1, 0);
+}
+
 void toggle_fullscreen()
 {
 	BITMAP *bmp = set_screen(is_windowed_mode());
@@ -319,6 +369,15 @@ void setcurs(int x, int y)
 	y += win_y;
 	curs_x = x;
 	curs_y = y;
+}
+
+void setwcurs(int win, int x, int y)
+{
+	if (win != window) {
+		getwin_xy(win, &win_x, &win_y);
+		window = win;
+	}
+	setcurs(x, y);
 }
 
 void movefwd(int n)
@@ -365,6 +424,53 @@ void refreshscreen()
 	memset(blit_rect, 0, 4);
 }
 
+void refreshwin(int win)
+{
+	static int redraw;
+	struct player *p;
+	int x, y, y2, w, h;
+	if (redraw)
+		return;
+	if (game.state != GAME_RUNNING) {
+		if (win == 1 || win == 2) {
+			p = &game.player[win-1];
+			redraw = 1;
+			if (game.state == GAME_PAUSED)
+				redrawboard(p, 19);
+			else
+				redrawboard(p, 3);
+			redraw = 0;
+		}
+		refreshscreen();
+		return;
+	}
+	if (!refresh_needed)
+		return;
+	x = 8 *blit_rect[0];
+	y = 16*blit_rect[1];
+	w = 8 *(blit_rect[2]-blit_rect[0]+1);
+	h = 16*(blit_rect[3]-blit_rect[1]+1);
+	y2 = y;
+	if (!is_windowed_mode())
+		y2 += 40;
+	acquire_screen();
+	blit(virt_screen, screen, x, y, x, y2, w, h);
+	release_screen();
+	refresh_needed = 0;
+	memset(blit_rect, 0, 4);
+}
+
+void clearwin(int win)
+{
+	setwcurs(win, 0, 0);
+	if (win >= WIN_NEXT)
+		clearbox(0, 0, 8, 2);
+	else {
+		clear_bitmap(virt_screen);
+		refresh_needed = 1;
+	}
+}
+
 static void update_blit_rect(char x, char y, char x2)
 {
 	if (x < blit_rect[0] || !blit_rect[0])
@@ -386,7 +492,7 @@ void cleartoeol()
 	update_blit_rect(curs_x, curs_y, maxx);
 }
 
-void set_color_pair(int clr)
+static void set_color_pair(int clr)
 {
 	int bg = 0;
 	int bold = 1;
@@ -442,6 +548,23 @@ void set_color_pair(int clr)
 		clr |= 8;
 	fg_color = clr;
 } 
+
+void setcolorpair(int clr)
+{
+	int bg;
+	if (clr == PANEL_LABEL_COLOR && !_MONOCHROME) {
+		clr = 3;
+		if (twoplayer_mode)
+			bg = 4;
+		else {
+			bg = (player1.level % 6)+1;
+			if (bg==6)
+				clr = 7;
+		}
+		clr = bg | clr<<3 | 64;
+	}
+	set_color_pair(clr);
+}
 
 void setattr_normal()
 {
@@ -557,9 +680,4 @@ void printlong(const char *fmt, long d)
 	char buf[80];
 	int n = usprintf(buf, fmt, d);
 	text_out(buf, n);
-}
-
-int default_bgdot()
-{
-	return BULLET;
 }

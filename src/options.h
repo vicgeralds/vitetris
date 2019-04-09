@@ -12,11 +12,13 @@ struct option {
 #define opt_isint(o) ((o)->tp_key[0] == 0)
 #define opt_isstr(o) ((o)->tp_key[0] == 1)
 
-extern struct sect {
+struct sect {
 	char name[8];
 	struct option *opts;
 	struct sect *next;
-} sect_hd;
+};
+
+extern int options_empty;
 
 /* returns 0 if converted to int, 1 if copied as string.
  * If value is a string of length >= 4, remove trailing space from str,
@@ -24,6 +26,7 @@ extern struct sect {
 int strtoval(char *str, union val *val);
 
 struct sect *addsect(const char *name);
+struct sect *get_first_sect();
 void addopt(const char *key, union val val, int tp, struct sect *sect);
 
 struct option *getoptions(const char *sect_name);

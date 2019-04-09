@@ -121,6 +121,8 @@ void mapescseq(const char *str, int keypr)
 		while (k != e->keypress) {
 			if (!e->next) {
 				e = e->next = malloc(sizeof(struct escseq));
+				if (!e)
+					return;
 				e->next = NULL;
 				break;
 			}

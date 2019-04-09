@@ -1,13 +1,14 @@
+/* Invite player on other terminal or receive invitation */
+
 #include <stdlib.h>
 #include <string.h>
 #include "menu.h"
-#include "menuext.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #undef TTY_SOCKET
 #define TTY_SOCKET 1
-#include "../netw/sock.h"
+#include "../net/sock.h"
 
 int yesno_menu(int x, int y);
 

@@ -16,7 +16,8 @@
 
 FILE *inet_out = NULL;
 
-extern struct sockaddr *sock_addr;
+extern struct sockaddr   *sock_addr;
+static struct sockaddr_in inet_addr;
 
 static struct in_addr *get_h_addr(const char *name)
 {
@@ -30,21 +31,18 @@ static struct in_addr *get_h_addr(const char *name)
 
 static int getaddr(const char *name, unsigned short port)
 {
-	struct sockaddr_in *addr;
 	struct in_addr *h;
-	if (sock_addr)
-		free(sock_addr);
-	addr = malloc(sizeof(struct sockaddr_in));
-	addr->sin_family = AF_INET;
-	addr->sin_port = htons(port);
+	sock_addr = NULL;
+	inet_addr.sin_family = AF_INET;
+	inet_addr.sin_port = htons(port);
 	if (name) {
 		h = get_h_addr(name);
 		if (!h)
 			return 0;
-		addr->sin_addr = *h;
+		inet_addr.sin_addr = *h;
 	} else
-		addr->sin_addr.s_addr = htonl(INADDR_ANY);
-	sock_addr = (struct sockaddr *) addr;
+		inet_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	sock_addr = (struct sockaddr *) &inet_addr;
 	return 1;
 }
 

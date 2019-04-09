@@ -7,8 +7,9 @@
 #include "input.h"
 #include "../timer.h"
 #include "../game/tetris.h"
-#include "../textgfx/textgfx.h" /* refreshscreen */
-#include "../textgfx/alleg.h"	/* toggle_fullscreen */
+
+void refreshscreen();
+void toggle_fullscreen();
 
 static short key_tm[KEY_MAX];
 
@@ -71,7 +72,7 @@ static void update_key_tm(int i)
 		p = memchr(arrow_keys, i, 8);
 		if (p) {
 			i = p - arrow_keys;
-			if (i%4 < 2 || !game || !game_running) {
+			if (i%4 < 2 || game.state != GAME_RUNNING) {
 				if ((i%4)%2 == 0)
 					i++;
 				else
@@ -121,9 +122,10 @@ static int getautorep_key(int *ascii)
 		return 0;
 	if (edit_mode && (i == KEY_BACKSPACE || i == KEY_DEL))
 		return i;
-	if (game && game_running)
+	if (game.state == GAME_RUNNING)
 		flags |= IN_GAME;
-	if (!game || (game->mode&(MODE_2PLAYER|MODE_NETWORK)) != MODE_2PLAYER)
+	if (game.state == GAME_NULL || (game.mode &
+					(MODE_2P|MODE_NET)) != MODE_2P)
 		flags |= SINGLE_PL;
 	temp_autorep_key = i<<8 | *ascii;
 	press = kb_getpress(flags);

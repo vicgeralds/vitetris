@@ -5,6 +5,7 @@
 
 short block_chars[2] = {TEXTURE1, TEXTURE2};
 short bgdot = 0;
+short default_bgdot = BULLET;
 
 static void sprint_num(char *s, int i)
 {
@@ -33,7 +34,6 @@ void blockstyle_from_option(const struct option *o)
 	const char *k = opt_key(o);
 	union val v = o->val;
 	int i;
-#if !NO_BLOCKSTYLES
 	if (!strcmp(k, "block")) {
 		if (opt_isint(o)) {
 			if (v.integ == -1) {
@@ -54,9 +54,7 @@ void blockstyle_from_option(const struct option *o)
 		}
 		if (v.str[2] == 'b')
 			textgfx_flags |= BLACK_BRACKETS;
-	} else
-#endif
-	if (!strcmp(k, "bgdot")) {
+	} else if (!strcmp(k, "bgdot")) {
 		if (v.str[0] == '~')
 			bgdot = BULLET;
 		else if (isprintable(v.str[0]))
@@ -106,31 +104,23 @@ void setblockcolor(int clr)
 	if (!clr) {
 		setattr_normal();
 		if (bgdot != ' ')
-			set_color_pair(BOARD_BG_COLOR);
+			setcolorpair(BOARD_BG_COLOR);
 		return;
 	}
 	if (!_MONOCHROME)
-		set_color_pair(clr);
-	else
-#if !NO_BLOCKSTYLES
-	if (!_TT_BLOCKS)
-#endif
-	{
+		setcolorpair(clr);
+	else if (!_TT_BLOCKS) {
 		setattr_normal();
 		setattr_standout();
 	}
-#if !NO_BLOCKSTYLES
 	if (textgfx_flags & (TT_BLOCKS | TT_BLOCKS_BG))
 		setblockchars_tt(clr);
-#endif
 }
 
 void reset_block_chars()
 {
-#if !NO_BLOCKSTYLES
 	if (getopt_int("term", "block"))
 		return;
-#endif
 	if ((textgfx_flags & (MONOCHROME | ASCII))==MONOCHROME) {
 		block_chars[0] = TEXTURE2;
 		block_chars[1] = TEXTURE1;

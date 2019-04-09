@@ -1,4 +1,8 @@
-2009-09-13: version 0.57
+2009-0?-??: version ?
+
+  * Initial rotation
+
+2009-09-10: version 0.57
 
   * Allegro: fixed awkward array overrun when there are more than two
     joysticks connected.
@@ -10,7 +14,6 @@
     used instead.
   * Workarounds for PDCurses in Win 98 (getch() returns strange things).
     I use PDCurses 3.3, haven't tried the latest version.
-  * Other small fixes.
 
 2009-06-17: version 0.56
 

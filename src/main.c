@@ -2,12 +2,11 @@
 #include <string.h>
 #include <ctype.h>
 #include <signal.h>
+#include <stdio.h>
 
 #ifdef ALLEGRO
-#include <stdio.h>
 #include "config.h"
 #include <allegro.h>
-#include "textgfx/alleg.h"
 #else
 #define END_OF_MAIN()
 #endif
@@ -22,8 +21,8 @@
 
 #include "game/tetris.h"
 #include "game/game.h"
-#include "menu/menuext.h"
-#include "netw/sock.h"
+#include "menu/menu.h"
+#include "net/sock.h"
 
 #ifdef TTY_SOCKET
 #define mk_invitfile() mkinvitfile()
@@ -44,36 +43,6 @@
 
 void proc_args(char **args, int n);
 
-static void setupgame(int i)
-{
-	allocgame(i & 2);
-	initgame();
-#if !NO_MENU
-	if (!in_menu)
-		goto skipmenu;
-	while (gamemenu()) {
-		in_menu = 0;
-		rm_invitfile();
-skipmenu:
-#endif
-		writeconfig();
-		do textgfx_entergame();
-		while (startgame());
-#if !NO_MENU
-		clearwin(0);
-		in_menu = 1;
-		textgfx_entermenu();
-		readoptions();
-	}
-	inputdevs_player[0] = 0;
-# ifdef SOCKET
-	rmsocket();
-	mk_invitfile();
-# endif
-#endif
-	game = NULL;
-}
-
 static void startup(int i)
 {
 #if XLIB
@@ -86,47 +55,61 @@ static void startup(int i)
 	enable_term_resizing();
 #endif
 	if (!bgdot)
-		bgdot = default_bgdot();
+		bgdot = default_bgdot;
 	if (in_menu)
 		textgfx_entermenu();
-#if !TWOPLAYER
-	setupgame(1);
-#else
 	if (i)
-		goto setup;
-	i = getopt_int("", "mode");
-	if (i & MODE_NETWORK)
-		i = 3;
-	else
-		i = 2-!(i & MODE_2PLAYER);
-# if NO_MENU
-setup:	setupgame(i);
-# else
-	if (!in_menu)
-		goto setup;
-	mk_invitfile();
-	while (1) {
-		i = startupmenu(i);
-		if (!i)
-			break;
-#  ifdef INET
-		if (i==3 && !netplaymenu())
-			continue;
-#  endif
-		if (i <= 3) {
-setup:			setupgame(i);
-#  ifdef INET
-			if (i==3 && playerlist_n > 0 && netplaymenu())
-				goto setup;
-#  endif
-		}
-		if (i==OPTIONS)
-			optionsmenu();
-		if (i==HIGHSCORES)
-			hiscorelist();
+		creategame();
+	else {
+		i = getopt_int("", "mode");
+		if (i & MODE_NET)
+			i = 3;
+		else
+			i = 2-!(i & MODE_2P);
+		if (in_menu)
+			mk_invitfile();
+		else
+			creategame();
 	}
-# endif /* !NO_MENU */
-#endif	/* TWOPLAYER */
+	/* main loop */
+	while (1) {
+		if (game.state != GAME_CREATED) {
+			i = startupmenu(i);
+			if (!i)
+				break;
+#ifdef INET
+			if (i==3 && !netplaymenu())
+				continue;
+#endif
+			if (i<=3)
+				creategame();
+			if (i==OPTIONS)
+				optionsmenu();
+			if (i==HIGHSCORES)
+				hiscorelist();
+			continue;
+		}
+		if (in_menu && !gamemenu()) {
+			inputdevs_player[0] = 0;
+#ifdef SOCKET
+			rmsocket();
+			mk_invitfile();
+#endif
+			game.state = GAME_NULL;
+#ifdef INET
+			if (i==3 && playerlist_n > 0 && netplaymenu())
+				creategame();
+#endif
+			continue;
+		}
+		rm_invitfile();
+		writeconfig();
+		do textgfx_entergame();
+		while (startgame());
+		clearwin(0);
+		textgfx_entermenu();
+		readoptions();
+	}
 	textgfx_end();
 }
 
@@ -134,9 +117,7 @@ static void cleanup()
 {
 	timer_end();
 	freeoptions("");
-#if !NO_MENU
 	rm_invitfile();
-#endif
 #ifdef SOCKET
 	sock_flags &= ~CONNECTED;
 	rmsocket();
@@ -150,6 +131,13 @@ static void cleanup()
 static void finish(int sig)
 {
 	exit(0);
+}
+
+void outofmem()
+{
+	textgfx_end();
+	puts("OUT OF MEMORY!");
+	exit(1);
 }
 
 int main(int argc, char **argv)
@@ -175,9 +163,7 @@ int main(int argc, char **argv)
 #else
 	startup(0);
 #endif
-#if !NO_MENU
 	writeconfig_message();
-#endif
 	return 0;
 }
 END_OF_MAIN()

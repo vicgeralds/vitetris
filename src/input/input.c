@@ -1,18 +1,18 @@
 #include <string.h>
-#include <stdio.h>	/* sprintf */
-#include <stdlib.h>	/* exit */
+#include <stdio.h>
+#include <stdlib.h>
 #include "input.h"
 #include "keyboard.h"
 #include "joystick.h"
 #include "../timer.h"
-#include "../draw/draw.h"  /* upd_screen */
+#include "../draw.h"		/* upd_screen */
 #include "../game/tetris.h"
 #ifndef SOCKET
 #define SOCKET_EMPTY_DEFS 1
 #undef socket_fd
 #define socket_fd -1
 #endif
-#include "../netw/sock.h"
+#include "../net/sock.h"
 
 #include "../textgfx/textgfx.h" /* upd_termresize */
 #include "../focus.h"
@@ -40,7 +40,7 @@ void init_inputdevs()
 #endif
 }
 
-#if TWOPLAYER && NUM_INPUTDEVS > 1
+#if NUM_INPUTDEVS > 1
 static int player_flag(int i, int flags)
 {
 	if (socket_fd > -1) {
@@ -63,8 +63,8 @@ static int getkeypress_select(int tm, int flags)
 		upd_termresize();
 #endif
 #if XLIB || ALLEGRO
-	if (tm > 80 && in_xterm && game && game_running &&
-	    !TWOPLAYER_MODE && !xterm_hasfocus())
+	if (tm > 80 && in_xterm && game.state == GAME_RUNNING &&
+	    !(game.mode & MODE_2P) && !xterm_hasfocus())
 		return STARTBTN;
 #endif
 	for (i = inpselect_dev(tm); i < NUM_INPUTDEVS && !keypress; i++) {
@@ -125,7 +125,7 @@ int getkeypress_block(int flags)
 {
 	int keypress;
 	while (1) {
-#if TTY_SOCKET && !NO_MENU
+#if TTY_SOCKET
 		if (!(flags & 1) && (invit || checkinvit()))
 			return ESC;
 #endif
@@ -302,36 +302,54 @@ int processkey_ingame(int key, int flags)
 {
 	static int discard_count;
 	struct player *plr;
-	int i = TWOPLAYER_MODE && key & PLAYER_2;
+	int i = (game.mode & MODE_2P) && (key & PLAYER_2);
+	int rot    = 0;
+	int rot_cw = 0;
 	int safe;
-	switch (key & 0x7F) {
+	int sock_p1;
+
+	plr = &game.player[i];
+	key &= 0x7F;
+	switch (key) {
 	case ESC:
 	case '\b':
-		game->state = 0;
+		game.state = GAME_CREATED;
 		return -2;
 	case 'q':
 		exit(0);
 	case STARTBTN:
 	case 'p':
-		if (flags & NO_PAUSE || !game_running || TWOPLAYER_MODE)
+		if (flags & NO_PAUSE || game.state != GAME_RUNNING ||
+					game.mode & MODE_2P)
 			break;
 		i = pausegame();
 		textgfx_flags &= ~LOST_FOCUS;
 		return i;
+
+	/* rotate */
+	case MVUP:
+		rot = 1;
+		rot_cw = plr->rotation & ROT_CLOCKWISE;
+		break;
+	case A_BTN:
+		rot_cw = 1;
+	case B_BTN:
+		rot = 1;
 	}
 	if (flags & DISCARD_MOVES) {
+		if (rot)
+			initialrotate(plr, rot_cw);
 		if (++discard_count > 5)
 			kb_flushinp();
 		return -1;
 	}
 	discard_count = 0;
-	plr = game->player+i;
 	safe = dropsafe(i);
-	key &= 0x7F;
+	sock_p1 = socket_fd > -1 && !i;
 	if (!(flags & DISCARD_DROPS)) {
 		switch (key) {
 		case HARDDROP:
-			if (socket_fd > -1 && !i) {
+			if (sock_p1) {
 				sock_sendpiece(plr);
 				if (harddrop(plr, safe) == -1)
 					return -1;
@@ -340,11 +358,11 @@ int processkey_ingame(int key, int flags)
 			}
 			return harddrop(plr, safe);
 		case MVDOWN:
-			if (!TWOPLAYER_MODE)
+			if (!(game.mode & MODE_2P))
 				return softdrop(softdrop_speed, safe);
 			if (!movedown(plr, 1))
 				return 0;
-			if (socket_fd > -1 && !i)
+			if (sock_p1)
 				sock_sendbyte(MVDOWN);
 			return 1;
 		}
@@ -356,19 +374,14 @@ int processkey_ingame(int key, int flags)
 	case MVRIGHT:
 		moveright(plr);
 		break;
-	case MVUP:
-		rotate(plr, plr->rotationsys & ROT_CLOCKWISE);
-		break;
-	case A_BTN:
-		rotate(plr, 1);
-		break;
-	case B_BTN:
-		rotate(plr, 0);
-		break;
 	default:
+		if (rot) {
+			rotate(plr, rot_cw);
+			break;
+		}
 		return -1;
 	}
-	if (socket_fd > -1 && !i)
+	if (sock_p1)
 		sock_sendbyte(key);
 	upd_screen(1+i);
 	return 1;

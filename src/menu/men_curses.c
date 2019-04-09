@@ -1,10 +1,8 @@
 #include <string.h>
 #include <curses.h>
 #include "menu.h"
-#include "menuext.h"
 #include "../textgfx/textgfx.h"
-#include "../textgfx/curs.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #include "../game/tetris.h"
 
 #ifdef INET
@@ -13,6 +11,9 @@
 #define STARTUP_N 6
 #endif
 #define STARTUP_Y (15-STARTUP_N)
+
+extern WINDOW *window;
+void init_color_pairs();
 
 static void printmenuhelp(int y)
 {
@@ -24,17 +25,16 @@ static void printmenuhelp(int y)
 	printstr("go back.  Exit at once with Q.");
 }
 
-#ifdef TWOPLAYER
 int startupmenu(int i)
 {
 	while (1) {
 		drawbox(5, STARTUP_Y-2, 22, STARTUP_N+4, NULL);
 		printmenuhelp(19);
 		i = startup_menu(i-1, 8, STARTUP_Y);
-# ifndef TTY_SOCKET
+#ifndef TTY_SOCKET
 		if (!i)
 			break;
-# else
+#else
 		if (i==2 && !select_2p_tty(24, STARTUP_Y+1))
 			continue;
 		if (!i) {
@@ -52,64 +52,38 @@ int startupmenu(int i)
 		move(term_height-1, 0);
 		clrtoeol();
 		refresh();
-# endif
+#endif
 		setcurs(5, STARTUP_Y-2);
 		wclrtobot(window);
 		break;
 	}
 	return i;
 }
-#endif /* TWOPLAYER */
 
 int gamemenu()
 {
 	int i = 0;
-#ifdef TWOPLAYER
 	int y = 7;
 	while (1) {
-		if (!TWOPLAYER_MODE) {
-			if (term_height >= 23)
+		if (!(game.mode & MODE_2P)) {
+			if (term_height >= 21)
 				show_hiscorelist5(5, GAMEMENU_LENGTH+9, 0);
-		} else if (term_height < 23) {
+		} else if (term_height < 21) {
 			setcurs(1, 4);
 			cleartoeol();
 			y = 5;
 		}
 		i = game_menu(0, 1, y);
-		if (i != 4)
+		if (i != 3)
 			break;
 		wclrtobot(window);
-		inputsetup_box(0, 1, 7);
+		inputsetup_screen(0, 1, 7);
 	}
 	if (!i) {
 		setcurs(1, 4);
 		wclrtobot(window);
 		print_vitetris_ver(19, 4);
 	}
-#else
-	while (1) {
-		printmenuhelp(19);
-		i = game_menu(i, 1, 7);
-		if (!i)
-			break;
-		clearbox(0, 7, 0, GAMEMENU_LENGTH);
-		if (i != 4 && i < GAMEMENU_LENGTH-1)
-			break;
-		wclrtobot(window);
-		switch (i) {
-		case 4:
-			inputsetup_box(0, 1, 7);
-			i = 0;
-			continue;
-		case GAMEMENU_LENGTH-1:
-			optionsmenu();
-			break;
-		default:
-			hiscorelist();
-		}
-		i--;
-	}
-#endif
 	return i;
 }
 
@@ -154,7 +128,7 @@ static int op_handler(int k, int *pos)
 		if (k) {
 			setcurs(0, 16);
 			wclrtobot(window);
-			inputsetup_box(k-1, 1, 7);
+			inputsetup_screen(k-1, 1, 7);
 		}
 		draw_options_box();
 		return 1;
@@ -169,10 +143,8 @@ static int op_handler(int k, int *pos)
 	}
 	if (i < 1+!(textgfx_flags & CYGWIN))
 		i = term_optionhandler(k, opts+i);
-#ifndef NO_BLOCKSTYLES
 	else
 		i = select_blockstyle(k);
-#endif
 	if (i == 3) {
 		draw_tetris_logo(0, 0);
 		if (!_MONOCHROME) {

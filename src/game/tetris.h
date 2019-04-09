@@ -34,100 +34,111 @@
 #define TETR_Z2 0x132	/* |#x  |#x  | */
 			/* | ## |#   | */
 
+/* delays in millisecs */
 #define SPAWN_DELAY 166
-#define LOCK_DELAY 166
+#define LOCK_DELAY  166
 #define CLEAR_DELAY 332
+
+/* max number of moves/rotations during lock delay */
+#define LOCK_DELAY_MOVES 10
 
 struct tetr {
 	short blocks;
 	signed char x, y;
 	char color;
+	char state;	/* rotation state 0-3 */
 };
 
-/* rotation sys flags */
+struct tetr_pos {
+	short blocks;
+	signed char x, y;
+};
+
+struct lockdelay {
+	int num_moves;
+	struct tetr_pos moves[LOCK_DELAY_MOVES];
+};
+
+/* rotation flags */
 #define ROT_CLOCKWISE 1
-#define ROT_LEFTHAND 2
+#define ROT_LEFTHAND  2
+#define ROT_MODERN    4
 
 struct player {
 	char startlevel;
 	char height;
 	char lineslimit;
-	char rotationsys;
+	char rotation;
 	struct tetr piece;
+	struct tetr *next;
 	uint_least32_t board[20];
 	int_least32_t score;
 	signed char level;
+	signed char initrot;	/* initial rotation */
+	char  floorkick;
 	short falltime;
 	short lines;
 	short mvleft_tm;
 	short mvright_tm;
+	struct lockdelay lockdelay;
 };
 
-/* game modes */
-#define MODE_1PLAYER 1
-#define MODE_2PLAYER 2
-#define MODE_BTYPE 4
-#define MODE_NETWORK 8
-
 /* game states */
-#define GAME_RUNNING 1
-#define GAME_PAUSED 2
-#define GAME_OVER 4
+#define GAME_NULL    0
+#define GAME_CREATED 1
+#define GAME_RUNNING 2
+#define GAME_PAUSED  3
+#define GAME_OVER    4
 
-#define GAME_members(n) 	\
-	char mode;		\
-	char state;		\
-	struct tetr *next;	\
-	struct player player[n]	\
+/* game modes */
+#define MODE_1P 1
+#define MODE_2P 2
+#define MODE_B  4
+#define MODE_NET 8
+#define MODE_40L 16
 
-extern struct game {
-	GAME_members(1);
-} *game;
+#define MODE_1P_B	(MODE_1P | MODE_B)
+#define MODE_1P_40L	(MODE_1P | MODE_40L)
+#define MODE_LINECLEAR	(MODE_B  | MODE_40L)
 
-struct game_1p {
-	GAME_members(1);
+struct game {
+	int state;
+	int mode;
+	struct player player[2];
+	char clearedlines[4];
 	unsigned char data[8];
 };
 
-struct game_2p {
-	GAME_members(2);
-};
+extern struct game game;
 
-#define game_running  (game->state & GAME_RUNNING)
-#define game_paused   (game->state & GAME_PAUSED)
-#define game_over     (game->state & GAME_OVER)
+#define player1 	game.player[0]
+#define player2 	game.player[1]
+#define tetr_stats	game.data
+#define softdrop_speed	game.data[7]
 
-#define player1  game->player[0]
-#define player2  game->player[1]
-
-#define tetr_stats	((struct game_1p *) game)->data
-#define softdrop_speed	((struct game_1p *) game)->data[7]
-
-extern char clearedlines[4];
+#define TWOPLAYER_MODE (game.mode & MODE_2P)
+#define isplayer2(p)   ((p) > &player1)
 
 int randnum(int n);
-void gettetrom(struct tetr *t, int i);
+int rand_tetrom_next();
+void gettetrom(struct tetr *t, int i, int rot);
 
 int hitbtm(struct tetr *piece, struct player *p);
+int test_lockdelay_move(struct player *p);
 void lockpiece(struct player *p);
 void moveright(struct player *p);
 void moveleft(struct player *p);
-int movedown(struct player *p, int drop);
-void rotate(struct player *p, int clockwise);
-int harddrop(struct player *p, int safe);
-int softdrop(int n, int safe);
+int  movedown(struct player *p, int drop);
+void rotate  (struct player *p, int clockwise);
+int  harddrop(struct player *p, int safe);
+int  softdrop(int n, int safe);
+
+void initialrotate(struct player *p, int clockwise);
+int  spawnpiece(struct player *p);
 
 void setupplayer(struct player *p);
 int startgame_1p();
 int startgame_wait(int flags);
 int pausegame();
-
-#ifdef TWOPLAYER
-#define TWOPLAYER_MODE (game->mode & MODE_2PLAYER)
-#define isplayer2(p) ((p) > game->player)
-#else
-#define TWOPLAYER_MODE 0
-#define isplayer2(p) 0
-#endif
 
 #endif /* !tetris_h */

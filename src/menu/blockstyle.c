@@ -1,6 +1,5 @@
 #include <string.h>
 #include "menu.h"
-#include "menuext.h"
 #include "../textgfx/textgfx.h"
 #include "../options.h"
 
@@ -23,7 +22,7 @@ static void setblockstyle(int i, int c)
 	union val v;
 	int tp = 0;
 	if (_TT_BLOCKS && bgdot==' ') {
-		bgdot = default_bgdot();
+		bgdot = default_bgdot;
 		unsetoption("term", "bgdot");
 	}
 	textgfx_flags &= ~(TT_BLOCKS | TT_BLOCKS_BG);
@@ -126,7 +125,7 @@ int select_blockstyle(int k)
 			i--;
 	}
 	j = i;
-	k = selectitem(items, n, &i, k);
+	k = selectitem(items, NULL, n, &i, k);
 	if (i != j) {
 		if (i && n==4)
 			i++;

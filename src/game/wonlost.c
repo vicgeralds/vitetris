@@ -103,7 +103,6 @@ void upd_wonlost_stats(const char *me, const char *opponent, int won)
 {
 	char stats[8];
 	char *key;
-	union val val;
 	char *s, *p;
 	int loss = 0;
 	readoptions();

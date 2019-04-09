@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include "menu.h"
-#include "menuext.h"
 #include "../textgfx/textgfx.h"
-#include "../textgfx/ansivt.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #include "../game/tetris.h"
 #include "../lang.h"
+#include "../config.h"
 
-#ifdef TWOPLAYER
+extern char menuheight;
+
 int startupmenu(int i)
 {
 	while (1) {
@@ -18,10 +18,10 @@ int startupmenu(int i)
 		printstr("Victor Nilsson"); newln(19);
 		printstr("2007-2009");
 		i = startup_menu(i-1, 1, 4);
-# ifndef TTY_SOCKET
+#if !TTY_SOCKET
 		if (!i)
 			break;
-# else
+#else
 		if (i==2 && !select_2p_tty(17, 5))
 			continue;
 		if (!i && (i = menu_checkinvit(1, 4)) == -1) {
@@ -32,54 +32,33 @@ int startupmenu(int i)
 			break;
 		setcurs_end();
 		printf("\033[K");
-# endif
+#endif
 		clearbox(0, 4, 0, menuheight-4);
 		break;
 	}
 	return i;
 }
-#endif /* TWOPLAYER */
 
 int gamemenu()
 {
 	int i = 1;
-#ifdef TWOPLAYER
 	int h;
-	if (!TWOPLAYER_MODE || game->mode & MODE_NETWORK)
+	if (!(game.mode & MODE_2P) || game.mode & MODE_NET)
 		h = GAMEMENU_LENGTH+4;
 	else {
-		h = 17;
+		h = 15;
 		while (menuheight < h)
 			newln(2);
 	}
 	while (1) {
 		i = game_menu(0, 1, 4);
-		if (i==4)
-			inputsetup_box(0, 1, 4);
+		if (i==3)
+			inputsetup_screen(0, 1, 4);
 		else
 			break;
 	}
 	if (!i)
 		clearbox(0, 4, 0, h-4);
-#else
-	while (1) {
-		i = game_menu(i-1, 1, 4);
-		if (i==4) {
-			setcurs(0, 13);
-			printf("\033[K");
-			inputsetup_box(0, 1, 4);
-			i = 1;
-		} else if (i < GAMEMENU_LENGTH-1)
-			break;
-		else {
-			clearbox(0, 4, 0, GAMEMENU_LENGTH);
-			if (i == GAMEMENU_LENGTH-1)
-				optionsmenu();
-			else
-				hiscorelist();
-		}
-	}
-#endif
 	return i;
 }
 
@@ -111,17 +90,15 @@ static int op_handler(int k, int *pos)
 	int i = *pos-2;
 	if (i < 0) {
 		if (k)
-			inputsetup_box(k-1, 1, 4);
+			inputsetup_screen(k-1, 1, 4);
 		return 1;
 	}
 	if (!i && !k)
 		menuheight = 11;
 	if (i < 3)
 		i = term_optionhandler(k, opts+i);
-#ifndef NO_BLOCKSTYLES
 	else
 		i = select_blockstyle(k);
-#endif
 	if (i == 3)
 		draw_tetris_logo(0, 0);
 	return i;

@@ -62,26 +62,53 @@ int dropdownlist(const char **items, int n, int i, int x, int y);
  *   0  if keypress != 0 and was unhandled -- nothing printed,
  *   3  if a dropdownlist was opened (redraw),
  *   1  otherwise -- the selected item was printed. */
-int selectitem(const char **items, int n, int *i, int keypress);
+int selectitem(const char **items,
+	       const char **abbr, int n, int *i, int keypress);
 
-#ifndef TWOPLAYER
-#  define GAMEMENU_LENGTH 10
-#  define player_ 0
-#else
-#  define GAMEMENU_LENGTH 7
+/* ___________
+  |   MENUS   |
+   ^^^^^^^^^^^   */
+int startupmenu(int i);
+int gamemenu();		/* opened when game mode is set */
+int netplaymenu();	/* connect screen */
+void hiscorelist();
+void optionsmenu();
+int gameovermenu();
+
+#define GAMEMENU_LENGTH 5
+
+/* inner functions */
+int startup_menu(int i, int x, int y);
+int game_menu(int i, int x, int y);
+int netplay_menu(int x, int y);
+void options_menu(const char **items, int n, menuhandler f, int x, int y);
+
+void show_hiscorelist(int x, int y);
+void show_hiscorelist5(int x, int y, int i);
+
+int select_2p_tty(int x, int y);
+int menu_checkinvit(int x, int y);
 
 extern int player_;  /* 0 - single player
 			1 - player1
 			2 - player2 */
+
+void inputsetup_screen(int player, int x, int y);
+
+struct termopt {
+	unsigned char flag;
+	const char *s;
+	const char *key;
+};
+int term_optionhandler(int k, const struct termopt *o);
+
+int getblockstyle();
+int select_blockstyle(int k);
+
+const char *getmodestr();
+
+#ifndef NULL
+#define NULL ((void *) 0)
 #endif
-
-void inputsetup_menu(int player, int x, int y);
-void inputsetup_box(int player, int x, int y);
-
-int game_menu(int i, int x, int y);
-
-void show_hiscorelist(int x, int y);
-void show_hiscorelist5(int x, int y, int i);
-int gameovermenu();
 
 #endif /* !menu_h */

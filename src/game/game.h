@@ -1,13 +1,10 @@
+
+#define DEFAULT_ROTATION (ROT_CLOCKWISE | ROT_LEFTHAND)
+
 /* returns 0 if key is unrecognized, -1 if val is invalid */
 int testgameopt(const char *key, int val, int pl);
 
-#ifndef TWOPLAYER
-#define allocgame(twop) struct game_1p gm1p; game = (struct game *) &gm1p
-#else
-#define allocgame(twop) struct game_2p gm2p; game = (struct game *) &gm2p
-#endif
-
-void initgame();
+void creategame();
 
 /* returns 1 to play again */
 int startgame();

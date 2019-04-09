@@ -19,7 +19,8 @@
 /* client flags */
 #define FIRST_BYTE 1
 #define AVAILABLE 2
-#define MODE_BTYPE 4
+#define MODE_B   4
+#define MODE_40L 16
 #define IN_GAME 8
 
 int listen_sock;
@@ -159,7 +160,11 @@ int writebytes(int sock, const char *buf, int n)
 void set_mode_str(int i, char *s)
 {
 	memset(s, 0, 3);
-	if (clients[i].flags & MODE_BTYPE) {
+	if (clients[i].flags & MODE_40L) {
+		s[0] = '4';
+		s[1] = '0';
+		s[2] = 'L';
+	} else if (clients[i].flags & MODE_B) {
 		s[0] = 'B';
 		int lines = clients[i].lineslimit;
 		if (lines < 10)
@@ -374,15 +379,18 @@ void set_wins(int i, int w)
 int fwd_to_opponent(int i, char *buf, int n)
 {
 	if (buf[0] == 'm') {
-		if (buf[1] & MODE_BTYPE) {
+		if (buf[1] & MODE_40L) {
+			buf[1] &= ~MODE_B;
+			buf[2] = 40;
+		} else if (buf[1] & MODE_B) {
 			if (buf[2] > 25)
-				buf[1] &= ~MODE_BTYPE;
+				buf[1] &= ~MODE_B;
 			if (buf[2] < 5)
 				buf[2] = 5;
-			writebytes(clients[i].sock, buf, 3);
 		}
-		clients[i].flags &= ~MODE_BTYPE;
-		clients[i].flags |= buf[1] & MODE_BTYPE;
+		writebytes(clients[i].sock, buf, 3);
+		clients[i].flags &= ~(MODE_B | MODE_40L);
+		clients[i].flags |= buf[1] & (MODE_B | MODE_40L);
 		clients[i].lineslimit = buf[2];
 	}
 #ifdef SAME_LEVEL_HEIGHT

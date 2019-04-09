@@ -1,17 +1,17 @@
 #include <stdlib.h>
 #include <string.h>
-#undef TWOPLAYER
-#define TWOPLAYER 1
 #include "tetris.h"
 #include "tetris2p.h"
 #include "game.h"	/* wonlost stats */
 #include "../timer.h"
 #include "../input/input.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #ifndef SOCKET
 #define SOCKET_EMPTY_DEFS 1
 #endif
-#include "../netw/sock.h"
+#include "../net/sock.h"
+
+void outofmem();
 
 struct tetris2p tetris2p[2];
 struct player *winner = NULL;
@@ -40,12 +40,14 @@ static void gen_tetrom_seq(int i, int n)
 	if (n > tetrom_seq_len) {
 		tetrom_seq = !tetrom_seq ? malloc(n)
 					 : realloc(tetrom_seq, n);
+		if (!tetrom_seq)
+			outofmem();
 		if (tetrom_seq_len == -1)
 			atexit(free_tetrom_seq);
 		tetrom_seq_len = n;
 	}
 	for (; i < n; i++)
-		tetrom_seq[i] = randnum(7);
+		tetrom_seq[i] = rand_tetrom_next();
 }
 
 static int
@@ -55,8 +57,8 @@ draw_lineclear_step(struct player *plr, struct tetris2p *tet, int first)
 	int n, x;
 	n = strlen(lines);
 	if (first)
-		tet->x1 = 6;
-	x = --tet->x1;
+		tet->x = 6;
+	x = --tet->x;
 	if (x) {
 		while (n) {
 			n--;
@@ -83,7 +85,7 @@ static void sendgarbage(struct tetris2p *tet)
 		tetris2p[i].garbage[0] += n;
 		if (tetris2p[i].garbage[0] > 12)
 			tetris2p[i].garbage[0] = 12;
-		upd_garbagemeter(game->player+i, tetris2p[i].garbage[0]);
+		upd_garbagemeter(game.player+i, tetris2p[i].garbage[0]);
 	}
 }
 
@@ -203,24 +205,20 @@ static void sendnext(struct player *p)
 
 static void lockdelay(struct player *plr, struct tetris2p *tet)
 {
-	struct tetr *p = &plr->piece;
 	tet->falltm = 0;
 	tet->delay = LOCK_DELAY;
-	tet->x1 = p->x;
-	tet->x2 = p->x;
-	tet->b1 = p->blocks;
-	tet->b2 = p->blocks;
+	tet->lockdelay = 1;
 	if (NETPLAY)
 		sendnext(plr);
 }
 
-static int upd_lockdelay_state(struct player *plr, struct tetris2p *tet)
+static int upd_lockdelay(struct player *plr, struct tetris2p *tet)
 {
 	struct tetr *p = &plr->piece;
 	if (!hitbtm(p, plr)) {
 		tet->delay = 0;
 		tet->falltm = plr->falltime;
-		tet->b1 = 0;
+		tet->lockdelay = 0;
 		movedown(plr, 0);
 		return 1;
 	}
@@ -230,18 +228,8 @@ static int upd_lockdelay_state(struct player *plr, struct tetris2p *tet)
 	}
 	if (tet->delay <= 0)
 		return 0;
-	if (p->x != tet->x2) {
-		if (p->x == tet->x1)
-			return 0;
+	if (test_lockdelay_move(plr))
 		tet->delay = LOCK_DELAY;
-		tet->x1 = tet->x2;
-		tet->x2 = p->x;
-	} else if (p->blocks != tet->b2) {
-		if (p->blocks == tet->b1)
-			return 0;
-		tet->delay = LOCK_DELAY;
-		tet->b2 = p->blocks;
-	}
 	return 1;
 }
 
@@ -252,7 +240,7 @@ static void lockpiece_2p(struct player *plr, struct tetris2p *tet)
 			lockdelay(plr, tet);
 			return;
 		}
-		if (!tet->b1)
+		if (!tet->lockdelay)
 			sendnext(plr);
 		if (plr->piece.blocks) {
 			sock_sendpiece(plr);
@@ -260,22 +248,23 @@ static void lockpiece_2p(struct player *plr, struct tetris2p *tet)
 		}
 	}
 	lockpiece(plr);
-	if (!clearedlines[0]) {
+	if (!game.clearedlines[0]) {
 		upd_screen(1+(tet>tetris2p));
 		spawndelay(plr, tet);
 	} else {
 		tet->falltm = 0;
-		memcpy(tet->clearedlines, clearedlines, 4);
+		memcpy(tet->clearedlines, game.clearedlines, 4);
 		draw_lineclear_step(plr, tet, 1);
-		sendgarbage(tet);
+		if (!(game.mode & MODE_40L))
+			sendgarbage(tet);
 	}
-	tet->b1 = 0;
+	tet->lockdelay = 0;
 }
 
 static void show_next(struct player *p, int i)
 {
 	struct tetr next;
-	gettetrom(&next, i);
+	gettetrom(&next, i, p->rotation);
 	drawnext(p, &next);
 }
 
@@ -314,7 +303,7 @@ int nextpiece_2p(struct player *plr)
 		return 0;
 	}
 #endif
-	gettetrom(&plr->piece, *p);
+	gettetrom(&plr->piece, *p, plr->rotation);
 #ifdef SOCKET
 	if (p[1]==0x7F)
 		drawnext(plr, NULL);
@@ -327,12 +316,7 @@ int nextpiece_2p(struct player *plr)
 	}
 	tet->falltm = plr->falltime;
 	tet->delay = 0;
-	if (movedown(plr, 0) && movedown(plr, 0)) {
-		show_dropmarker(plr);
-		upd_screen(0);
-		return 1;
-	}
-	return 0;
+	return spawnpiece(plr);
 }
 
 static int getwaittm()
@@ -377,8 +361,8 @@ static int upd_player(struct player *plr, struct tetris2p *tet, int tm)
 		tet->delay -= tm;
 		if (tet->falltm)
 			return tet->delay > 0;
-		if (tet->b1) {
-			if (!upd_lockdelay_state(plr, tet))
+		if (tet->lockdelay) {
+			if (!upd_lockdelay(plr, tet))
 				lockpiece_2p(plr, tet);
 		} else if (tet->delay <= 0) {
 			if (!draw_lineclear_step(plr, tet, 0))
@@ -398,9 +382,11 @@ static int upd_player(struct player *plr, struct tetris2p *tet, int tm)
 
 static int startgame_wait_2p()
 {
-	struct tetr next = {0};
-	gettetrom(&next, *tetrom_seq);
-	game->next = &next;
+	struct tetr next1={0}, next2={0};
+	gettetrom(&next1, *tetrom_seq, player1.rotation);
+	gettetrom(&next2, *tetrom_seq, player2.rotation);
+	player1.next = &next1;
+	player2.next = &next2;
 	return startgame_wait(0);
 }
 
@@ -428,6 +414,8 @@ static int initround()
 		show_next(&player2, *tetrom_seq);
 	} else {
 		tetrom_seq = malloc(4);
+		if (!tetrom_seq)
+			return 0;
 		memset(tetrom_seq, 0x7F, 4);
 		tetrom_seq_len = 4;
 		tetrom_seq_pos[1] = 2;
@@ -454,7 +442,8 @@ static int gameover_timeout(int *gameover)
 		sock_flags |= PL2_IN_GAME;
 		return 1;
 	}
-	if (*gameover == 1 && tetris2p[0].delay < 31768 && tetris2p[1].b1)
+	if (*gameover == 1 && tetris2p[0].delay < 31768 &&
+			      tetris2p[1].lockdelay)
 		return 1;
 	if (*gameover == 3 && tetris2p[1].delay < 31768) {
 		*gameover = 1 + (tetris2p[0].delay >= tetris2p[1].delay);
@@ -485,7 +474,7 @@ static void set_gameover(int *gameover, int i)
 
 static void updateplayer(int *gameover, int i, int t)
 {
-	struct player *plr = game->player+i;
+	struct player *plr = game.player+i;
 	if (!upd_player(plr, tetris2p+i, gettm(t)-t) && !nextpiece_2p(plr))
 		set_gameover(gameover, i);
 }
@@ -517,7 +506,7 @@ static struct player *play_round()
 				sendnext(&player2);
 		}
 		if (!ret)
-			lockpiece_2p(game->player+i, tetris2p+i);
+			lockpiece_2p(game.player+i, tetris2p+i);
 		if (ret)
 			updateplayer(&gameover, i, t);
 		updateplayer(&gameover, !i, t);
@@ -525,12 +514,12 @@ static struct player *play_round()
 			return winner;
 	}
 	i = !(gameover & 1);
-	if (!(game->mode & MODE_BTYPE) || game->player[i].lines)
+	if (!(game.mode & MODE_LINECLEAR) || game.player[i].lines)
 		i = !i;
-	if (gameover==3 && (!(game->mode & MODE_BTYPE) || !player1.lines ==
-							  !player2.lines))
+	if (gameover==3 && (!(game.mode & MODE_LINECLEAR) ||
+			    !player1.lines == !player2.lines))
 		i = 2;
-	winner = game->player+i;
+	winner = game.player+i;
 	if (NETPLAY)
 		sock_sendwinner();
 	return winner;
@@ -540,7 +529,7 @@ static int wait_gameover()
 {
 	int tm = 2000;
 	int t;
-	game->state = GAME_OVER;
+	game.state = GAME_OVER;
 	do {
 		t = gettm(0);
 		switch (getkeypress(tm, IN_GAME) & 0x7F) {
@@ -569,7 +558,7 @@ int startgame_2p()
 	}
 	while (plr = play_round()) {
 		free_tetrom_seq();
-		if (plr == game->player+2)	/* draw */
+		if (plr == game.player+2)	/* draw */
 			plr = NULL;
 		else {
 			plr->score++;
@@ -603,14 +592,14 @@ int startgame_2p()
 		}
 		if (NETPLAY) {
 			if (!(sock_flags & PL2_IN_GAME)) {
-				game->state = 0;
+				game.state = GAME_CREATED;
 				return startgame_2p();
 			}
 			sock_sendbyte('s');
 		}
 	}
 	free_tetrom_seq();
-	game->state = 0;
+	game.state = GAME_CREATED;
 #ifdef SOCKET
 	if (NETPLAY) {
 		sock_flags &= ~PL2_IN_GAME;

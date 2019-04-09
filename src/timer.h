@@ -2,10 +2,12 @@
 #define CLOCKS_PER_SEC CLK_TCK
 #endif
 
+#define TIMER_WRAPAROUND_SECS 10
+
 void timer_init();
 void timer_end();
 
-/* get time in milliseconds >= tm */
+/* get running time in milliseconds >= tm */
 int gettm(int tm);
 
 /* sleep ms milliseconds */

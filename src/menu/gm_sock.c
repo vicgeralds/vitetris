@@ -1,15 +1,14 @@
+/* Socket connection game menu and player list */
+
 #include <string.h>
 #include <stdlib.h>
 #include "menu.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #include "../game/tetris.h"
 #include "../game/game.h"
-#include "../netw/sock.h"
-#undef SOCKET
-#define SOCKET 1
-#include "internal.h"
+#include "../net/sock.h"
 
 int yesno_menu(int x, int y)
 {
@@ -145,17 +144,13 @@ static void show_playerlist(int x, int y)
 
 int gamemenu_socket(const char **menu, int i, int x, int y, menuhandler *hs)
 {
+	const int len = 4;
 	int keypr = 0;
 	clearbox(x, y, 0, 7);
-	/* remove separator */
-	memmove(menu+2, menu+3, 3*sizeof(*menu));
-	memmove(hs+2, hs+3, 3*sizeof(*hs));
-	if (i>2)
-		i--;
 	while (1) {
 		if (!keypr)	/* redraw once every second */
-			drawmenu(menu, 5, i, x, y, hs);
-		setcurs(x, y+5);
+			drawmenu(menu, len, i, x, y, hs);
+		setcurs(x, y+len);
 		newln(x);
 		if (!(sock_flags & CONNECTED)) {
 			if (sock_flags & CONN_PROXY) {
@@ -167,10 +162,10 @@ int gamemenu_socket(const char **menu, int i, int x, int y, menuhandler *hs)
 						continue;
 					}
 				}
-				clearbox(x, y+6, 0, 6);
+				clearbox(x, y+len+1, 0, 6);
 				if (socket_fd < 0)
 					return 0;
-				setcurs(x, y+6);
+				setcurs(x, y+len+1);
 			}
 			printstr("Waiting for opponent...");
 		} else {
@@ -190,7 +185,7 @@ int gamemenu_socket(const char **menu, int i, int x, int y, menuhandler *hs)
 			putch(player2.height+'0');
 		}
 		newln(x);
-		if (game->mode & MODE_BTYPE) {
+		if (game.mode & MODE_B) {
 			cleartoeol();
 			newln(x);
 			setattr_bold();
@@ -220,7 +215,7 @@ int gamemenu_socket(const char **menu, int i, int x, int y, menuhandler *hs)
 		keypr = getkeypress(1000, 0);
 		if (!keypr)
 			continue;
-		switch (handle_menuitem(menu, 5, &i, x, y+i, hs, keypr)) {
+		switch (handle_menuitem(menu, len, &i, x, y+i, hs, keypr)) {
 		case 0:
 			if (CONNECTED == (sock_flags & (CONNECTED |
 							CONN_BROKEN))) {
@@ -236,18 +231,18 @@ int gamemenu_socket(const char **menu, int i, int x, int y, menuhandler *hs)
 					continue;
 				}
 			}
-			i = 1;
-			if (game->mode & MODE_BTYPE)
+			i = 2;
+			if (game.mode & MODE_B)
 				i += 2;
 			if (opponent_name[0])
 				i += 2;
-			clearbox(0, y+7, 0, i);
+			clearbox(0, y+GAMEMENU_LENGTH, 0, i);
 			return 0;
 		case 2:
 			player2.height = 0;
-			if (i>1)
-				i++;
 			return i+1;
+		case 3:
+			keypr = 0;	/* redraw */
 		}
 	}
 }

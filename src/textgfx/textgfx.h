@@ -1,6 +1,6 @@
-/*
- * textgfx flags
- */
+/* +-----------------+
+ * |  textgfx_flags  |
+ * +-----------------+ */
 #define ASCII 1
 #define WHITE_BG 2
 #define MONOCHROME 4
@@ -33,11 +33,11 @@ extern unsigned textgfx_flags;
 extern char term_width;
 extern char term_height;
 
+extern int in_menu;
+
 extern short block_chars[2];
 extern short bgdot;
-
-int default_bgdot();
-void reset_block_chars();
+extern short default_bgdot;
 
 void gettermsize();
 void settermwidth(int cols);
@@ -46,14 +46,7 @@ void gettermoptions();
 
 void textgfx_init();
 void textgfx_end();
-
-#ifdef NO_MENU
-#define in_menu 0
-#define textgfx_entermenu()
-#else
-extern int in_menu;
 void textgfx_entermenu();
-#endif
 void textgfx_entergame();
 
 /* Windows
@@ -77,8 +70,6 @@ void setcurs_end();
 int is_outside_screen(int x, int y);
 void get_xy(int *x, int *y);
 
-void refreshscreen();
-
 /* refreshwin(-1) refreshes the current window */
 void refreshwin(int win);
 
@@ -99,12 +90,11 @@ void cleartoeol();
 
 void setcolorpair(int pair);
 
-/* inner func - doesn't set PANEL_LABEL_COLOR which depends on tetris level */
-void set_color_pair(int pair);
-
 /* Set color pair and block chars based on block style.
  * clr = 1-7 or 0 for board bg. */
 void setblockcolor(int clr);
+
+void reset_block_chars();
 
 void setattr_normal();
 void setattr_standout();
@@ -128,6 +118,9 @@ void setattr_underline();
 #define TEXTURE2 ('h' | 0x100)	/* ACS_BOARD or blank */
 #define BULLET	 ('~' | 0x100)
 #define UPARROW	 ('-' | 0x100)
+
+/* convert to codepage 437 */
+int ibmgfx(int ch);
 
 /* putch conflicts with DOS conio */
 void put_ch(int ch);

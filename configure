@@ -6,7 +6,6 @@
 
 # You may comment out/uncomment any of these lines to change defaults.
 PREFIX=/usr/local
-ENABLE_2P=y		# 2-player
 ENABLE_JS=y		# joystick
 ENABLE_NETWORK=y
 #WITH_CURSES=y
@@ -14,8 +13,6 @@ WITH_X=y
 #WITH_ALLEGRO=y
 
 ENABLE_TERM_RESIZING=y
-ENABLE_MENU=y
-ENABLE_BLOCKSTYLES=y
 
 # DOS only
 PCTIMER=y
@@ -57,11 +54,10 @@ Build options:
 
 Default features:"
 	FEATURES=
-	for feat in "2player=$ENABLE_2P" "joystick=$ENABLE_JS" \
-		    "network=$ENABLE_NETWORK" "curses=$WITH_CURSES" \
-		    "xlib=$WITH_X" "allegro=$WITH_ALLEGRO" nl \
-		    "term_resizing=$ENABLE_TERM_RESIZING" "menu=$ENABLE_MENU" \
-		    "blockstyles=$ENABLE_BLOCKSTYLES" \
+	for feat in "joystick=$ENABLE_JS" "network=$ENABLE_NETWORK" \
+		    "curses=$WITH_CURSES" "xlib=$WITH_X" \
+		    "allegro=$WITH_ALLEGRO" nl \
+		    "term_resizing=$ENABLE_TERM_RESIZING" \
 		    " pctimer=$PCTIMER" nl
 	do
 		if [ "$feat" = nl ]; then
@@ -144,11 +140,9 @@ Default features:"
 	fi
 	if [ "$feat" != "${feat%=*}" ]; then
 		echo "unrecognized option \"$arg\""
-		exit 1
+		continue
 	fi
 	case "$feat" in
-	2p*|twoplayer)
-		ENABLE_2P=$with ;;
 	js|joystick)
 		ENABLE_JS=$with ;;
 	net*)
@@ -161,20 +155,12 @@ Default features:"
 		WITH_ALLEGRO=$with ;;
 	term_resiz*)
 		ENABLE_TERM_RESIZING=$with ;;
-	menu)
-		ENABLE_MENU=$with ;;
-	blockstyle*)
-		ENABLE_BLOCKSTYLES=$with ;;
 	pctimer)
 		PCTIMER=$with ;;
 	*)
 		echo "unrecognized option \"$arg\""
-		exit 1
 	esac
 done
-if [ -z "$ENABLE_2P" ]; then
-	ENABLE_NETWORK=
-fi
 if [ -n "$WITH_ALLEGRO" ]; then
 	WITH_CURSES=
 	WITH_X=
@@ -775,8 +761,6 @@ comment_if_empty() {
 	fi
 }
 
-comment_if_empty $ENABLE_2P
-echo TWOPLAYER = y >> configmk.tmp
 comment_if_empty $ENABLE_JS
 echo JOYSTICK = y >> configmk.tmp
 comment_if_empty $ENABLE_NETWORK
@@ -785,10 +769,6 @@ comment_if_empty $TTY_SOCKET
 echo TTY_SOCKET = y >> configmk.tmp
 comment_if_empty $ENABLE_TERM_RESIZING
 echo TERM_RESIZING = y >> configmk.tmp
-comment_if_empty $ENABLE_MENU
-echo MENU = y >> configmk.tmp
-comment_if_empty $ENABLE_BLOCKSTYLES
-echo BLOCKSTYLES = y >> configmk.tmp
 echo >> configmk.tmp
 
 if [ $OS = unix ]; then
@@ -874,11 +854,9 @@ echo "  desktopdir = $DESKTOPDIR"
 echo
 echo FEATURES:
 echo $n "  $c"
-for feat in "2player=$ENABLE_2P" "joystick=$ENABLE_JS" \
-	    "network=$ENABLE_NETWORK" "curses=$WITH_CURSES" \
-	    "xlib=$WITH_X" "allegro=$WITH_ALLEGRO"  \
-	    "term_resizing=$ENABLE_TERM_RESIZING" "menu=$ENABLE_MENU" \
-	    "blockstyles=$ENABLE_BLOCKSTYLES" pctimer=$PCTIMER
+for feat in "joystick=$ENABLE_JS" "network=$ENABLE_NETWORK" \
+	    "curses=$WITH_CURSES" "xlib=$WITH_X" "allegro=$WITH_ALLEGRO"  \
+	    "term_resizing=$ENABLE_TERM_RESIZING" "pctimer=$PCTIMER"
 do
 	if [ "$feat" = "${feat%=}" ]
 	then echo $n "${feat%=*} $c"

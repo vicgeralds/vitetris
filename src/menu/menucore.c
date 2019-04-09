@@ -1,4 +1,4 @@
-#include <stdlib.h>	/* exit */
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include "menu.h"
@@ -7,7 +7,6 @@
 
 void printmenuitem(const char *name, int sel)
 {
-#if !NO_MENU
 	if (*name == '-') {
 		putch(' ');
 		if (!name[1])
@@ -16,20 +15,15 @@ void printmenuitem(const char *name, int sel)
 			printstr(name);
 		return;
 	}
-#endif
 	if (!sel)
 		setcolorpair(MAGENTA_FG);
 	else if (!_MONOCHROME)
 		setcolorpair(WHITE_ON_BLUE);
 	else
 		setattr_standout();
-	if (sel && (textgfx_flags & TT_MONO)==TT_BLOCKS) {
-		while (*name==' ') {
-			putch(' ');
-			name++;
-		}
-		putch('*');
-	} else
+	if (sel && (textgfx_flags & TT_MONO)==TT_BLOCKS)
+		putch('>');
+	else
 		putch(' ');
 	printstr(name);
 	putch(' ');
@@ -75,7 +69,6 @@ void drawmenu(const char **menu, int n, int pos, int x, int y,
 	}
 }
 
-#ifndef NO_MENU
 static int find_firstletter(const char **menu, int n, int i, int c)
 {
 	int j = 1;
@@ -90,7 +83,6 @@ static int find_firstletter(const char **menu, int n, int i, int c)
 			return j-i;
 	return 0;
 }
-#endif
 
 int handle_menuitem(const char **menu, int n, int *i, int x, int y,
 		    menuhandler *handlers, int keypr)
@@ -119,11 +111,7 @@ int handle_menuitem(const char **menu, int n, int *i, int x, int y,
 	case MVUP:
 		if (!j)
 			return 1;
-#if NO_MENU
-		m = -1;
-#else
 		m = -1-(*menu[j-1]=='-');
-#endif
 		break;
 	case '\t':
 		if (j == n-1) {
@@ -132,18 +120,12 @@ int handle_menuitem(const char **menu, int n, int *i, int x, int y,
 		}
 	case MVDOWN:
 		if (j < n-1) {
-#if NO_MENU
-			m = 1;
-#else
 			m = 1+(*menu[j+1]=='-');
-#endif
 			break;
 		}
 	default:
-#ifndef NO_MENU
 		if (m = find_firstletter(menu, n, j, keypr))
 			break;
-#endif
 		return 1;
 	}
 	setcurs(x, y);
@@ -167,10 +149,8 @@ int openmenu(const char **menu, int n, int i, int x, int y,
 			return 0;
 		case 2:
 			return i+1;
-#if !NO_MENU
 		case 3:
 			return openmenu(menu, n, i, x, y, handlers);
-#endif
 		}
 	}
 }
@@ -252,10 +232,8 @@ void printtextbox(const char *text, int pos)
 	setattr_normal();
 }
 
-#if !NO_MENU
 int rarrow_menuitem(int k, int *p)
 {
 	printstr("\b->");
 	return k==MVRIGHT ? 2 : 0;
 }
-#endif

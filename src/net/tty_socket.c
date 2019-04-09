@@ -16,7 +16,8 @@
 
 const struct invit *invit = NULL;
 char this_tty[8] = "";
-static int invit_fd = -1;
+static int  invit_fd = -1;
+static char tty_addr_mem[offsetof(struct sockaddr_un, sun_path) + 29];
 
 static int get_this_tty()
 {
@@ -162,7 +163,7 @@ int get_2p_ttys(char *ttys, int n)
 static void getaddr(const char *tty, int server)
 {
 	char fname[29];
-	struct sockaddr_un *addr;
+	struct sockaddr_un *addr = (struct sockaddr_un *) tty_addr_mem;
 	if (server) {
 		tty = this_tty;
 		if (!*tty)
@@ -170,10 +171,6 @@ static void getaddr(const char *tty, int server)
 	}
 	getfname(fname, tty);
 	strcat(fname+14, ".socket");
-	if (sock_addr)
-		free(sock_addr);
-	addr = malloc(offsetof(struct sockaddr_un, sun_path)
-					+ strlen(fname)+1);
 	addr->sun_family = AF_UNIX;
 	strcpy(addr->sun_path, fname);
 	sock_addr = (struct sockaddr *) addr;

@@ -20,9 +20,8 @@
 #define CONFIG_FILENAME "vitetris.cfg"
 #endif
  
-/* Only used if UNIX */
-#ifndef HISCORE_FILENAME
-#define HISCORE_FILENAME "/var/games/vitetris-hiscores"
+#if !UNIX || __CYGWIN__
+#define IBMGRAPHICS 1
 #endif
 
 #if __DJGPP__ || __TURBOC__

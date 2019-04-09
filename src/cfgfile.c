@@ -14,7 +14,7 @@
 #include "input/input.h"
 #include "input/keyboard.h"
 #include "input/joystick.h"
-#include "draw/draw.h"
+#include "draw.h"
 
 char cfgfilename[80] = CONFIG_FILENAME;
 
@@ -24,7 +24,9 @@ static const char input_keynames[12][6] = {
 };
 static const char tcolor_keys[8] = "ijlostz";
 
-void writehiscores(FILE *fp);
+static struct sect *curr_sect;
+
+void writehiscores(FILE *fp, const char *sect_name);
 
 void setcfgfilename(const char *argv0)
 {
@@ -94,14 +96,14 @@ static int readopt(const char *line, char *key, union val *val, int *tp)
 	return 0;
 }
 
-#if JOYSTICK && TWOPLAYER
+#ifdef JOYSTICK
 static void read_inputdev_player(int pl)
 {
 	int i = 0;
 	if (pl != 1 && pl != 2)
 		return;
-	if (sect_hd.next->name[0] == 'j')
-		i = sect_hd.next->name[2]-'0'+1;
+	if (curr_sect->name[0] == 'j')
+		i = curr_sect->name[2]-'0'+1;
 	inputdevs_player[i] = pl;
 }
 #endif
@@ -122,14 +124,11 @@ static int nametokeypress_i(int i, int flags)
 static int nametokeypress(char *name)
 {
 	int i = 0;
-	int flags;
-#ifdef TWOPLAYER
+	int flags = 0;
 	if (name[0] == 'p') {
 		flags = (name[1]=='1') ? PLAYER_1 : PLAYER_2;
 		memmove(name, name+2, strlen(name+2)+1);
-	} else
-#endif
-	flags = 0;
+	}
 	while (strcmp(name, input_keynames[i]) && i < 12)
 		i++;
 	return nametokeypress_i(i, flags);
@@ -191,13 +190,13 @@ static int readkeymapping(char *key, union val val, int tp)
 	if (!keypress)
 		return 0;
 #ifdef JOYSTICK
-	if (sect_hd.next->name[0] == 'j') {
+	if (curr_sect->name[0] == 'j') {
 		if (!tp)
 			val.integ += '0';
 		else if (tp != 1 || !(val.integ = test_input_chr9(val.str)))
 			return 0;
 		keypress &= 63 | IN_GAME;
-		js_setmapping(sect_hd.next->name[2]=='1', val.integ, keypress);
+		js_setmapping(curr_sect->name[2]=='1', val.integ, keypress);
 	} else
 #endif
       	if ((keypress & 63) == STARTBTN)
@@ -237,26 +236,29 @@ void readoptions()
 	int tp;
 	char inputconf = 0;
 	char tcolors = 0;
+	int root = 1;
 
-	if (sect_hd.opts || sect_hd.next)
+	if (!options_empty)
 		return;
 	fp = fopen(cfgfilename, "r");
 	if (!fp)
 		return;
+	curr_sect = NULL;
 	while (fgets(line, 80, fp)) {
 		if (!readopt(line, key, &val, &tp))
 			continue;
 		if (line[0] == '[') {
+			root = 0;
 			if (!strcmp(key, "hiscore"))
 				break;
 			inputconf = is_inputconf(key);
 			tcolors = !strcmp(key, "tcolors");
 			if (!tcolors)
-				addsect(key);
+				curr_sect = addsect(key);
 			continue;
 		}
 		if (inputconf) {
-#if JOYSTICK && TWOPLAYER
+#ifdef JOYSTICK
 			if (!tp && !strcmp(key, "player"))
 				read_inputdev_player(val.integ);
 			else
@@ -268,14 +270,44 @@ void readoptions()
 			read_tetrom_color(key, val.integ);
 			continue;
 		}
-addopt:		addopt(key, val, tp, sect_hd.next);
+addopt:		if (curr_sect || root)
+			addopt(key, val, tp, curr_sect);
 	}
 	fclose(fp);
 }
 
-static void writeopts(FILE *fp, const struct sect *sect)
+void readoptions_from(FILE *fp, const char **sect_names, int n)
 {
-	struct option *o = sect->opts;
+	char line[80];
+	char key[12];
+	union val val;
+	int tp;
+	int i;
+
+	if (!fp)
+		return;
+	curr_sect = NULL;
+	while (fgets(line, 80, fp)) {
+		if (!readopt(line, key, &val, &tp))
+			continue;
+		if (line[0] == '[') {
+			if (!strcmp(key, "hiscore"))
+				break;
+			curr_sect = NULL;
+			for (i=0; i<n; i++)
+				if (!strcmp(key, sect_names[i])) {
+					curr_sect = addsect(key);
+					break;
+				}
+			continue;
+		}
+		if (curr_sect)
+			setoption(curr_sect->name, key, val, tp);
+	}
+}
+
+static void writeopts(FILE *fp, struct option *o)
+{
 	while (o) {
 		fprintf(fp, "%s=", opt_key(o));
 		if (opt_isint(o))
@@ -315,10 +347,8 @@ static void printkeymapping(FILE *fp, int keypress, int i)
 	int n = kb_getkeyfor(keypress, s, 0);
 	if (!n)
 		return;
-#ifdef TWOPLAYER
 	if (keypress & (PLAYER_1 | PLAYER_2))
 		fprintf(fp, "p%c", '1'+!(keypress & PLAYER_1));
-#endif
 	fprintf(fp, "%s=", input_keynames[i]);
 	if (n > 1) {
 #if CURSES
@@ -355,7 +385,7 @@ static void writeinputconf(FILE *fp, const char *devkey)
 	int i = 0;
 	if (isjoystick)
 		i = devkey[2]-'0'+1;
-#if JOYSTICK && TWOPLAYER
+#ifdef JOYSTICK
 	if (inputdevs_player[i])
 		fprintf(fp, "player=%d\n", inputdevs_player[i]);
 #endif
@@ -378,7 +408,6 @@ mappings:
 
 	if (isjoystick)
 		return;
-#ifdef TWOPLAYER
 	if (!flags) {
 		flags = PLAYER_1;
 		goto mappings;
@@ -387,7 +416,6 @@ mappings:
 		flags = PLAYER_2;
 		goto mappings;
 	}
-#endif
 }
 
 static void write_tetrom_colors(FILE *fp)
@@ -395,7 +423,7 @@ static void write_tetrom_colors(FILE *fp)
 	int i;
 	if (!strncmp(tetrom_colors, "\x1\x7\x5\x4\x2\x3\x6", 7))
 		return;
-	fprintf(fp, "[tcolors]\n");
+	fputs("[tcolors]\n", fp);
 	for (i = 0; i < 7; i++)
 		fprintf(fp, "%c=%d\n", tcolor_keys[i], tetrom_colors[i]);
 }
@@ -409,26 +437,27 @@ int writeconfig()
 	fp = fopen(cfgfilename, "w");
 	if (!fp)
 		return 0;
-	writeopts(fp, &sect_hd);
+	writeopts(fp, getoptions(""));
 	addsect("stdin");
 #if ALLEGRO
 	addsect("js0");
 	addsect("js1");
 #endif
-	sect = sect_hd.next;
+	addsect("btype");
+	addsect("40l");
+	sect = get_first_sect();
 	while (sect) {
 		fprintf(fp, "[%s]\n", sect->name);
 		if (is_inputconf(sect->name))
 			writeinputconf(fp, sect->name);
-		writeopts(fp, sect);
+		writeopts(fp, sect->opts);
+		writehiscores(fp, sect->name);
 		sect = sect->next;
 	}
 	freeoptions("");
 	write_tetrom_colors(fp);
-	if (hiscores[0].score) {
-		fprintf(fp, "[hiscore]\n");
-		writehiscores(fp);
-	}
+	fputs("[hiscore]\n", fp);
+	writehiscores(fp, NULL);
 	fclose(fp);
 	return 1;
 }

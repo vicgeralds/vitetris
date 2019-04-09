@@ -5,34 +5,8 @@
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
 #include "../hiscore.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #include "../game/tetris.h"
-
-void show_hiscorelist5(int x, int y, int i)
-{
-	char s[20];
-	const struct hiscore *hs, *end;
-	int n;
-	if (!hiscores[0].score && !readhiscores(NULL))
-		return;
-	setcurs(x, y);
-	hs = hiscores;
-	i -= 5;
-	if (i < 0)
-		i = 0;
-	else
-		hs += i;
-	end = hs+5;
-	while (hs->score && hs != end) {
-		n = sprintf(s, "%2d. %s", i+1, gethiscorename(i, s+12));
-		memset(s+n, ' ', 12-n);
-		sprintf(s+12, "%7ld", (long) hs->score);
-		printstr(s);
-		newln(x);
-		hs++;
-		i++;
-	}
-}
 
 static void printsavebutton(int sel)
 {
@@ -176,9 +150,9 @@ static int playagain_menu(const char **menu, int x, int y)
 static int hiscorebox(const char **menu, int x, int y)
 {
 	int i = 0;
-	while (i < 10 && hiscores[i].score >= player1.score)
+	while (i < num_hiscores && !isbetterscore(i))
 		i++;
-	if (i < 10)
+	if (i < num_hiscores)
 		i++;
 	while (is_outside_screen(x+24, 0))
 		x--;
@@ -227,10 +201,13 @@ entername:
 int gameovermenu()
 {
 	const char *menu[2] = {"Play again", "Exit"};
+	const char *title = "GAME OVER";
 	readhiscores(NULL);
 	if (ishiscore())
 		return hiscore_congrats(menu);
+	if (game.mode & MODE_LINECLEAR && player1.lines <= 0)
+		title = "SUCCESS";
 	setwcurs(1, 2, 3);
-	drawbox(2, 3, 17, 5, "GAME OVER");
+	drawbox(2, 3, 17, 5, title);
 	return playagain_menu(menu, 4, 5);
 }

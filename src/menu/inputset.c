@@ -1,14 +1,13 @@
+/* Input Setup screen */
+
 #include <string.h>
 #include "menu.h"
-#include "internal.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
-#include "../draw/draw.h"
+#include "../draw.h"
 #include "../lang.h"
 
-#if TWOPLAYER
 int player_ = 0;
-#endif
 
 static int inp_keypr(int i)
 {
@@ -50,7 +49,7 @@ static int inp_setcurs(int x, int y, int i)
 	return x;
 }
 
-void inputsetup_menu(int pl, int x, int y)
+static void inputsetup_menu(int pl, int x, int y)
 {
 	const char *menu[11] = {
 		" Up", "Dwn", "Lft", "Rgt", "  A", "  B",
@@ -73,9 +72,7 @@ void inputsetup_menu(int pl, int x, int y)
 	menu[8] = rot_acw;
 	drawmenu(menu, 6, i, x, y, NULL);
 	drawmenu(menu+6, 5, -1, x+12, y, NULL);
-#ifdef TWOPLAYER
 	player_ = pl;
-#endif
 	while (1) {
 #ifdef JOYSTICK
 		if (devlist && i==-1) {
@@ -116,7 +113,6 @@ void inputsetup_menu(int pl, int x, int y)
 	}
 }
 
-#ifndef NO_MENU
 static void printhelp(int x, int y)
 {
 	setcurs(x, y);
@@ -124,7 +120,7 @@ static void printhelp(int x, int y)
 	printstr("ENTER to return");
 }
 
-void inputsetup_box(int pl, int x, int y)
+void inputsetup_screen(int pl, int x, int y)
 {
 	int h = 8;
 #ifdef JOYSTICK
@@ -135,15 +131,12 @@ void inputsetup_box(int pl, int x, int y)
 	printhelp(x+2, y+h+2);
 	setcurs(x, y);
 	printmenuitem("Input Setup", 1);
-#ifdef TWOPLAYER
 	if (!pl)
 		printstr(" single");
 	printstr(" player");
 	if (pl)
 		putch(pl+'0');
-#endif
 	drawbox(x, y+1, 31, h, NULL);
 	inputsetup_menu(pl, x+1, y+2);
 	clearbox(x, y, 0, h+4);
 }
-#endif

@@ -1,10 +1,11 @@
+/* Netplay connect screen */
+
 #include <string.h>
 #include <stdio.h>
 #include "menu.h"
-#include "menuext.h"
 #include "../input/input.h"
 #include "../textgfx/textgfx.h"
-#include "../netw/sock.h"
+#include "../net/sock.h"
 #include "../options.h"
 
 extern FILE *inet_out;

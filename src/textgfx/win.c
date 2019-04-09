@@ -1,17 +1,31 @@
 #include "textgfx.h"
-#include "../draw/draw.h"
-#include "../game/tetris.h"
+#include "../draw.h"
 
-#if !NO_MENU
 int in_menu = 1;
-#endif
+
+void txtg_entermenu();
+void txtg_entergame();
+
+void textgfx_entermenu()
+{
+	in_menu = 1;
+	twoplayer_mode = 0;
+	txtg_entermenu();
+}
+
+void textgfx_entergame()
+{
+	in_menu = 0;
+	draw_entergame();
+	txtg_entergame();
+}
 
 int getmargin_x()
 {
 	int x;
 	if (term_width <= 32)
 		x = 0;
-	else if (!in_menu && TWOPLAYER_MODE) {
+	else if (twoplayer_mode) {
 		if (term_width < 58)
 			x = 0;
 		else
@@ -40,7 +54,7 @@ void getwin_xy(int win, int *x, int *y)
 		next_xy(1+win-WIN_NEXT, x, y);
 		return;
 	case WIN_PANEL:
-		*x = TWOPLAYER_MODE ? 22 : 0;
+		*x = twoplayer_mode ? 22 : 0;
 		break;
 	case WIN_TETROM_STATS:
 		*y = 11;
