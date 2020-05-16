@@ -124,6 +124,7 @@ static void upd_score_level(struct player *p, int n)
 		lines = p->lineslimit - p->lines;
 		if (p->lines <= 0) {
 			p->lines = 0;
+			// This ends the game!
 			p->piece.y = -1;
 		}
 	} else {

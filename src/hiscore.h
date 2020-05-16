@@ -9,7 +9,7 @@ struct hiscore {
 	short lines;
 } hiscores[10];
 
-#define ishiscore() (player1.score >= 12000 && \
+#define ishiscore() (((game->mode & MODE_BTYPE) ? player1.lines == 0 : player1.score >= 12000) && \
 		     player1.score > hiscores[9].score)
 
 int readhiscores(const char *filename);
