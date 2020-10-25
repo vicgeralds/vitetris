@@ -5,7 +5,7 @@ PROGNAME = tetris$(EXE)
 # Uncomment to change the default.  (Only used in Unix-like systems.)
 #HISCORE_FILENAME = /var/games/vitetris-hiscores
 
-INSTALL = install -oroot -groot
+INSTALL = install
 
 default: build
 	@echo Done.
