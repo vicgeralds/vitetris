@@ -5,6 +5,9 @@ PROGNAME = tetris$(EXE)
 # Uncomment to change the default.  (Only used in Unix-like systems.)
 #HISCORE_FILENAME = /var/games/vitetris-hiscores
 
+# Uncomment to change the default. (Only used if you didn't install the game)
+#HISCORE_FILENAME = $HOME/vitetris/vitetris-hiscores
+
 INSTALL = install
 
 default: build
