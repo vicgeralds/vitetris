@@ -126,8 +126,13 @@ static struct option *get_opt(const char *sect_name, const char *key)
 int getopt_int(const char *sect_name, const char *key)
 {
 	struct option *o = get_opt(sect_name, key);
-	if (o)
+	if (o) {
+		const char *s = opt_longstr(o);
+		if (s) {
+			return atoi(s);
+		}
 		return o->val.integ;
+	}
 	return 0;
 }
 

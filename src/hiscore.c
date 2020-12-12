@@ -5,8 +5,11 @@
 #include "lang.h"
 #include "game/tetris.h"
 #include "config.h"
+#include "options.h"
 
 struct hiscore hiscores[10] = {{"", 0}};
+
+unsigned lastscore = 0;
 
 static const char last_chars[8] = "ZÅÄÖ!?Ü";
 
@@ -304,6 +307,14 @@ void writehiscores(FILE *fp)
 #endif
 }
 
+static void save_last_score(const struct hiscore *hs)
+{
+	union val value;
+	readoptions();
+	value.integ = (lastscore = hs->score);
+	setoption("", "lastscore", value, 0);
+}
+
 int savehiscore(const char *name)
 {
 	struct hiscore hs;
@@ -321,6 +332,7 @@ int savehiscore(const char *name)
 	hs.level = player1.level;
 	hs.lines = player1.lines;
 	addhiscore(&hs);
+	save_last_score(&hs);
 	n = writeconfig();
 	return (savehiscores_global() || n);
 }

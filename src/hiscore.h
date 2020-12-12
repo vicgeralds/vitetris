@@ -9,6 +9,8 @@ struct hiscore {
 	short lines;
 } hiscores[10];
 
+extern unsigned lastscore;
+
 #define ishiscore() (((game->mode & MODE_BTYPE) ? player1.lines == 0 : player1.score >= 12000) && \
 		     player1.score > hiscores[9].score)
 

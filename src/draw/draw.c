@@ -231,6 +231,11 @@ static void print_top_scores()
 			pos = 1;
 			continue;
 		}
+		if ((unsigned) hs->score == lastscore) {
+			setattr_bold();
+		} else {
+			setattr_normal();
+		}
 		putch(i+'0');
 		putch('.');
 		if (hs->score < 1000000)

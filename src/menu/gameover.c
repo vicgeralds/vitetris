@@ -24,6 +24,11 @@ void show_hiscorelist5(int x, int y, int i)
 		hs += i;
 	end = hs+5;
 	while (hs->score && hs != end) {
+		if ((unsigned) hs->score == lastscore) {
+			setattr_bold();
+		} else {
+			setattr_normal();
+		}
 		n = sprintf(s, "%2d. %s", i+1, gethiscorename(i, s+12));
 		memset(s+n, ' ', 12-n);
 		sprintf(s+12, "%7ld", (long) hs->score);

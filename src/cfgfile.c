@@ -271,6 +271,8 @@ void readoptions()
 addopt:		addopt(key, val, tp, sect_hd.next);
 	}
 	fclose(fp);
+
+	lastscore = getopt_int("", "lastscore");
 }
 
 static void writeopts(FILE *fp, const struct sect *sect)
