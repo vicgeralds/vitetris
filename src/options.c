@@ -5,9 +5,22 @@
 
 struct sect sect_hd = {""};
 
+static int to_integer(const char *str, int n)
+{
+	int i = *str=='-';
+	if (str[i]>'0' && str[i]<='9') {
+		i++;
+		for (; i<n; i++)
+			if (!isdigit(str[i]))
+				return 0;
+		return atoi(str);
+	}
+	return 0;
+}
+
 int strtoval(char *str, union val *val)
 {
-	int n, i;
+	int n;
 	while (isspace(*str))
 		str++;
 	n = strlen(str);
@@ -21,16 +34,10 @@ int strtoval(char *str, union val *val)
 		val->p = str;
 		return 2;
 	}
-	i = *str=='-';
-	if (str[i]>'0' && str[i]<='9') {
-		val->integ = atoi(str);
-		i++;
-		for (; i<n; i++)
-			if (!isdigit(str[i]))
-				goto str;
+	if ((val->integ = to_integer(str, n)) != 0) {
 		return 0;
 	}
-str:	strncpy(val->str, str, 4);
+	strncpy(val->str, str, 4);
 	if (n && n<4)
 		val->str[n] = '\0';
 	return 1;
@@ -129,7 +136,9 @@ int getopt_int(const char *sect_name, const char *key)
 	if (o) {
 		const char *s = opt_longstr(o);
 		if (s) {
-			return atoi(s);
+			int d = to_integer(s, strlen(s));
+			if (d != 0)
+				return d;
 		}
 		return o->val.integ;
 	}
