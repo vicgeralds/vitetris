@@ -615,7 +615,7 @@ int main(int argc, char **argv)
 			write_logfile(argv[2]);
 		if (time(NULL)-t > 12*60*60) {
 			time(&t);
-			printf(ctime(&t));
+			printf("%s", ctime(&t));
 		}
 	}
 	return 0;
