@@ -17,7 +17,7 @@ static char name_str[18];
 
 static int cursor = -1;
 
-static init_field(char *str, const char *val, int maxlen)
+static void init_field(char *str, const char *val, int maxlen)
 {
 	memset(str, ' ', maxlen+1);
 	if (val) {
