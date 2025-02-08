@@ -229,13 +229,13 @@ entername:
 	}
 }
 
-int gameovermenu()
+int gameovermenu(const char *title)
 {
 	const char *menu[2] = {"Play again", "Exit"};
 	readhiscores(NULL);
 	if (ishiscore())
 		return hiscore_congrats(menu);
 	setwcurs(1, 2, 3);
-	drawbox(2, 3, 17, 5, "GAME OVER");
+	drawbox(2, 3, 17, 5, title);
 	return playagain_menu(menu, 4, 5);
 }

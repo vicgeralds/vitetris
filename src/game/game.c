@@ -122,5 +122,8 @@ int startgame()
 	}
 	if (!hiscores[0].score)
 		readhiscores(NULL);
-	return startgame_1p() && gameovermenu();
+	return startgame_1p() && gameovermenu(
+		(game->mode & MODE_BTYPE) && player1.lines == 0 ?
+		"SUCCESS!" : "GAME OVER"
+        );
 }

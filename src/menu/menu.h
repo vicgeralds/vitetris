@@ -82,6 +82,6 @@ int game_menu(int i, int x, int y);
 
 void show_hiscorelist(int x, int y);
 void show_hiscorelist5(int x, int y, int i);
-int gameovermenu();
+int gameovermenu(const char *title);
 
 #endif /* !menu_h */
